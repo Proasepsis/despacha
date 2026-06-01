@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-despacha}
+      POSTGRES_USER: ${DB_USER:-despacha}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - /home/despachos/postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-despacha} -d ${DB_NAME:-despacha}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - despacha_net
+
+  web:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - despacha_net
+
+volumes:
+  media_data:
+
+networks:
+  despacha_net:
+    driver: bridge
