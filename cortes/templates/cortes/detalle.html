@@ -279,7 +279,16 @@ function generarArchivo(e) {
                 msg.style.color = '#065f46';
                 setTimeout(function() { location.reload(); }, 1500);
             } else {
-                msg.textContent = 'Error: ' + (data.error || 'falló');
+                var detalle = '';
+                if (data.resultados) {
+                    var partes = [];
+                    for (var dest in data.resultados) {
+                        var r = data.resultados[dest];
+                        if (!r.ok) partes.push(dest + ': ' + (r.error || 'error desconocido'));
+                    }
+                    if (partes.length) detalle = ' → ' + partes.join(' | ');
+                }
+                msg.textContent = 'Error: ' + (data.error || 'falló') + detalle;
                 msg.style.color = '#9b1c1c';
             }
         });

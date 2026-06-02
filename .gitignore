@@ -1,4 +1,6 @@
 .env
+secrets/
+client_secret_*.json
 __pycache__/
 *.pyc
 *.pyo

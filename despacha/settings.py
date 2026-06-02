@@ -114,6 +114,10 @@ CSRF_TRUSTED_ORIGINS = _csrf_env if _csrf_env else [
     f"https://{host}" for host in ALLOWED_HOSTS if host != "localhost"
 ]
 
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 # SMTP (Google Workspace)
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
 EMAIL_PORT = env("EMAIL_PORT", default=587)

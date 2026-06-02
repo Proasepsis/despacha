@@ -26,6 +26,7 @@ services:
         condition: service_healthy
     volumes:
       - media_data:/app/media
+      - /opt/despacha/secrets:/secrets:ro
     restart: unless-stopped
     networks:
       - despacha_net

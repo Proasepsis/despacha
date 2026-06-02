@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
@@ -27,6 +28,8 @@ from cortes.servicios.bloqueo import (
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
 from cortes.servicios.generar import generar_y_entregar
+
+logger = logging.getLogger(__name__)
 
 
 class EsOperarioOAdminMixin(UserPassesTestMixin):
@@ -325,6 +328,8 @@ class GenerarCorteView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
         if not resultado["success"]:
+            for msg in resultado.get("errores", []):
+                logger.error("Corte %s — fallo destino: %s", corte.pk, msg)
             return JsonResponse(
                 {
                     "ok": False,
