@@ -1,32 +1,20 @@
 import os
-from pathlib import Path
-
 import environ
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
-    DEBUG=(bool, False),
-    SECRET_KEY=(str, ""),
-    ALLOWED_HOSTS=(list, []),
-    CSRF_TRUSTED_ORIGINS=(list, []),
+    DEBUG=(bool, True),
+    SECRET_KEY=(str, "test-secret-key-not-for-production"),
+    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", "testserver"]),
     TIME_ZONE=(str, "America/Bogota"),
     LANGUAGE_CODE=(str, "es-co"),
-    DB_NAME=(str, "despacha"),
-    DB_USER=(str, "despacha"),
-    DB_PASSWORD=(str, ""),
-    DB_HOST=(str, "db"),
-    DB_PORT=(int, 5432),
-    ENVIRONMENT=(str, "production"),
+    ENVIRONMENT=(str, "test"),
 )
 
-environ.Env.read_env(BASE_DIR / ".env")
-
 SECRET_KEY = env("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY no está definida en el .env")
-
-DEBUG = env("DEBUG")
+DEBUG = True
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 INSTALLED_APPS = [
@@ -74,21 +62,12 @@ WSGI_APPLICATION = "despacha.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("DB_NAME"),
-        "USER": env("DB_USER"),
-        "PASSWORD": env("DB_PASSWORD"),
-        "HOST": env("DB_HOST"),
-        "PORT": env("DB_PORT"),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
+AUTH_PASSWORD_VALIDATORS = []
 
 TIME_ZONE = "America/Bogota"
 USE_TZ = True
@@ -106,21 +85,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "/admin/login/"
 
-SESSION_COOKIE_AGE = 8 * 3600
-SESSION_SAVE_EVERY_REQUEST = True
-
-_csrf_env = env("CSRF_TRUSTED_ORIGINS")
-CSRF_TRUSTED_ORIGINS = _csrf_env if _csrf_env else [
-    f"https://{host}" for host in ALLOWED_HOSTS if host != "localhost"
-]
-
-# SMTP (Google Workspace)
-EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
-EMAIL_PORT = env("EMAIL_PORT", default=587)
-EMAIL_USE_TLS = env("EMAIL_USE_TLS", default=True)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Despacha <sistema@proasepsis.com>")
-
-if DEBUG:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+DEFAULT_FROM_EMAIL = "test@local"

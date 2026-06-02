@@ -1,0 +1,293 @@
+{% extends "cortes/base.html" %}
+
+{% block title %}Corte {{ corte.numero_corte }} · {{ corte.fecha|date:"d M Y" }} — Despacha{% endblock %}
+
+{% block content %}
+
+<div class="toolbar">
+<div style="flex:1;">
+<h2 style="margin:0;">Corte {{ corte.numero_corte }} · {{ corte.fecha|date:"d M Y" }}</h2>
+<p style="margin:0.25rem 0 0;color:var(--text-muted);font-size:13px;">
+    <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
+    · {{ documentos_count }} docs · {{ lineas_count }} líneas
+    {% if sin_maestro_count > 0 %}<span style="color:var(--danger);">· {{ sin_maestro_count }} sin maestra</span>{% endif %}
+</p>
+</div>
+<a href="{% url 'lista_cortes' %}" class="btn btn-outline" data-kb="back">&laquo; Volver</a>
+</div>
+
+<div style="text-align:right;margin-bottom:0.5rem;">
+{% if bloqueo_info %}
+    <p style="margin:0;font-size:12px;color:var(--text-muted);">
+    {% if es_editor %}Tú estás editando{% else %}Editando: <strong>{{ bloqueo_info.usuario }}</strong>{% endif %}
+    </p>
+    {% if es_admin and not es_editor %}
+    <button onclick="forzarLiberacion()" style="font-size:11px;background:var(--danger);color:white;border:none;border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;">Forzar liberación</button>
+    {% endif %}
+{% endif %}
+<p id="ultima-edicion" style="font-size:11px;color:var(--text-muted);margin:0.25rem 0 0;"></p>
+</div>
+
+{% if sin_maestro_count > 0 %}
+<div class="msg msg-error" style="margin-bottom:1rem;">
+    <strong>{{ sin_maestro_count }} línea(s) sin producto en la maestra.</strong>
+    Resuélvelas en el <a href="{% url 'admin:productos_producto_changelist' %}" target="_blank">admin de productos</a>.
+    No se puede generar el archivo hasta que todas estén resueltas.
+</div>
+{% endif %}
+
+{% for doc in documentos_data %}
+<div class="doc-card" style="background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);margin-bottom:1rem;overflow:hidden;">
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 1rem;background:#fafafa;border-bottom:1px solid #eee;">
+<div style="display:flex;align-items:center;gap:1rem;">
+    <strong style="min-width:90px;">{{ doc.factura }}</strong>
+    <span style="color:#888;font-size:0.8rem;">NIT: {{ doc.nit }}</span>
+    <span style="background:#e5e7eb;border-radius:10px;padding:0.1rem 0.5rem;font-size:0.75rem;">{{ doc.lineas|length }} líneas</span>
+</div>
+
+<div style="display:flex;align-items:center;gap:0.75rem;">
+    {% if es_editor %}
+    <label style="font-size:0.75rem;color:#555;">
+        Emb:
+        <select id="clas1-{{ doc.id }}" onchange="autosave('documento', {{ doc.id }}, 'clasificador1', this.value)" style="font-size:0.8rem;padding:0.15rem;">
+        {% for op in clasificador1_opciones %}
+            <option value="{{ op }}" {% if doc.clasificador1 == op %}selected{% endif %}>{{ op }}</option>
+        {% endfor %}
+        </select>
+    </label>
+    <label style="font-size:0.75rem;color:#555;">
+        Prioridad:
+        <select id="obs-{{ doc.id }}" onchange="autosave('documento', {{ doc.id }}, 'observaciones', this.value)" style="font-size:0.8rem;padding:0.15rem;">
+        {% for op in prioridad_opciones %}
+            <option value="{{ op }}" {% if doc.observaciones == op %}selected{% endif %}>{{ op }}</option>
+        {% endfor %}
+        </select>
+    </label>
+    <button onclick="toggleLineas({{ doc.id }})" style="font-size:0.75rem;background:#1a56db;color:white;border:none;border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;">Ver líneas</button>
+    {% if not doc.creado_por_split %}
+    <button onclick="abrirSplit({{ doc.id }})" style="font-size:0.75rem;background:#d97706;color:white;border:none;border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;">Partir</button>
+    {% else %}
+    <button onclick="deshacerSplit({{ doc.id }})" style="font-size:0.75rem;background:#6b7280;color:white;border:none;border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;">Deshacer split</button>
+    {% endif %}
+    {% else %}
+    <span style="font-size:0.8rem;color:#888;">Emb: {{ doc.clasificador1 }}</span>
+    <span style="font-size:0.8rem;color:#888;">Prioridad: {{ doc.observaciones }}</span>
+    <button onclick="toggleLineas({{ doc.id }})" style="font-size:0.75rem;background:#1a56db;color:white;border:none;border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;">Ver líneas</button>
+    {% endif %}
+</div>
+</div>
+
+<div id="lineas-{{ doc.id }}" style="display:none;">
+<table style="width:100%;font-size:0.8rem;">
+<thead>
+<tr style="background:#fafafa;">
+    <th style="width:30px;">{% if es_editor %}<input type="checkbox" disabled>{% endif %}</th>
+    <th>Referencia</th>
+    <th>Descripción</th>
+    <th>Lote</th>
+    <th>Cantidad</th>
+    <th style="width:20px;"></th>
+</tr>
+</thead>
+<tbody>
+{% for linea in doc.lineas %}
+<tr>
+    <td style="text-align:center;">
+        {% if es_editor and not doc.creado_por_split %}
+        <input type="checkbox" class="split-check-{{ doc.id }}" value="{{ linea.id }}">
+        {% endif %}
+    </td>
+    <td>{{ linea.referencia }}</td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ linea.descripcion }}">{{ linea.descripcion }}</td>
+    <td>{{ linea.lote }}</td>
+    <td>
+        {% if es_editor %}
+        <input type="number" step="0.01" min="0.01" value="{{ linea.cantidad_unidades }}"
+               onchange="autosave('linea', {{ linea.id }}, 'cantidad_unidades', this.value)"
+               style="width:100px;font-size:0.8rem;padding:0.15rem;border:1px solid #d1d5db;border-radius:4px;">
+        {% else %}
+        {{ linea.cantidad_unidades }}
+        {% endif %}
+    </td>
+    <td>
+        {% if linea.sin_maestro %}
+        <span title="Producto no encontrado en maestra" style="color:#9b1c1c;font-weight:700;font-size:1rem;">&#9888;</span>
+        {% elif linea.inactivo %}
+        <span title="Producto inactivo" style="color:#d97706;font-weight:700;font-size:1rem;">&#9888;</span>
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+</div>
+{% endfor %}
+
+<div style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;">
+    <a href="{% url 'lista_cortes' %}" class="btn btn-primary" style="background:#6b7280;">&laquo; Volver a lista</a>
+    {% if es_editor %}
+        {% if sin_maestro_count == 0 %}
+        <div style="background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:1rem;">
+            <form id="form-generar" onsubmit="return generarArchivo(event)" style="display:flex;align-items:center;gap:1.5rem;">
+                {% csrf_token %}
+                <label style="font-size:0.85rem;"><input type="checkbox" name="destinos" value="descarga" checked> Descargar</label>
+                <label style="font-size:0.85rem;"><input type="checkbox" name="destinos" value="drive" checked> Google Drive</label>
+                {% if corte.version_actual > 0 %}
+                    <input type="text" name="motivo" placeholder="Motivo de regeneración" style="padding:0.3rem;font-size:0.8rem;border:1px solid #d1d5db;border-radius:4px;width:180px;">
+                {% endif %}
+                <button type="submit" class="btn btn-primary" {% if corte.version_actual > 0 %}onclick="return confirm('¿Crear versión v{{ corte.version_actual|add:'1' }}? Se conservará el archivo anterior.')"{% endif %}>
+                    {% if corte.version_actual > 0 %}
+                        Regenerar (v{{ corte.version_actual|add:"1" }})
+                    {% else %}
+                        Generar archivo
+                    {% endif %}
+                </button>
+            </form>
+            <p id="generar-msg" style="margin:0.5rem 0 0;font-size:0.8rem;color:#555;"></p>
+        </div>
+        {% else %}
+        <span class="btn btn-primary" style="background:#9ca3af;cursor:not-allowed;" title="Hay líneas sin maestra que deben resolverse primero">Generar (bloqueado)</span>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% if corte.version_actual > 0 %}
+<div style="margin-top:0.5rem;font-size:0.8rem;color:#d97706;">
+    &#9888; Última versión generada: v{{ corte.version_actual }}. Al generar se creará v{{ corte.version_actual|add:"1" }}.
+</div>
+{% endif %}
+
+{% verbatim %}
+<script>
+var CORTE_ID = {% endverbatim %}{{ corte.pk }}{% verbatim %};
+
+function getCSRF() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+function autosave(tipo, id, campo, valor) {
+    fetch('/cortes/' + CORTE_ID + '/editar/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF(),
+        },
+        body: JSON.stringify({tipo: tipo, id: id, campo: campo, valor: valor})
+    }).then(function(r) {
+        return r.json();
+    }).then(function(data) {
+        if (data.ok) {
+            var el = document.getElementById('ultima-edicion');
+            el.textContent = 'Guardado ' + data.ultima_edicion;
+            el.style.color = '#065f46';
+            setTimeout(function() { el.style.color = '#999'; }, 2000);
+        }
+    });
+}
+
+function toggleLineas(docId) {
+    var el = document.getElementById('lineas-' + docId);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function abrirSplit(docId) {
+    var checks = document.querySelectorAll('.split-check-' + docId + ':checked');
+    var ids = [];
+    checks.forEach(function(c) { ids.push(parseInt(c.value)); });
+    if (!ids.length) { alert('Selecciona al menos una línea para mover.'); return; }
+    if (!confirm('¿Mover ' + ids.length + ' línea(s) a un documento aparte?')) return;
+
+    fetch('/cortes/' + CORTE_ID + '/split/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF(),
+        },
+        body: JSON.stringify({documento_id: docId, lineas_ids: ids})
+    }).then(function(r) {
+        if (r.ok) location.reload();
+        else r.json().then(function(d) { alert(d.error); });
+    });
+}
+
+function deshacerSplit(docId) {
+    if (!confirm('¿Deshacer el split y devolver las líneas al documento original?')) return;
+
+    fetch('/cortes/' + CORTE_ID + '/deshacer-split/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF(),
+        },
+        body: JSON.stringify({documento_id: docId})
+    }).then(function(r) {
+        if (r.ok) location.reload();
+        else r.json().then(function(d) { alert(d.error); });
+    });
+}
+
+function forzarLiberacion() {
+    if (!confirm('¿Forzar la liberación del bloqueo? Quedará auditado.')) return;
+
+    fetch('/cortes/' + CORTE_ID + '/forzar-liberacion/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF(),
+        },
+        body: '{}'
+    }).then(function(r) {
+        if (r.ok) location.reload();
+        else alert('Error al forzar liberación');
+    });
+}
+
+function generarArchivo(e) {
+    e.preventDefault();
+    var form = document.getElementById('form-generar');
+    var data = new FormData(form);
+    var msg = document.getElementById('generar-msg');
+
+    fetch('/cortes/' + CORTE_ID + '/generar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRF() },
+        body: data
+    }).then(function(r) {
+        var contentType = r.headers.get('content-type') || '';
+        if (contentType.indexOf('application/vnd.ms-excel') !== -1) {
+            return r.blob().then(function(blob) {
+                var url = window.URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                var disposition = r.headers.get('content-disposition') || '';
+                var match = disposition.match(/filename="?([^"]+)"?/);
+                a.href = url;
+                a.download = match ? match[1] : 'archivo.xls';
+                a.click();
+                window.URL.revokeObjectURL(url);
+                msg.textContent = 'Descargado.';
+                msg.style.color = '#065f46';
+                setTimeout(function() { location.reload(); }, 1500);
+            });
+        }
+        return r.json().then(function(data) {
+            if (data.ok) {
+                msg.textContent = 'Generado v' + data.version + '. Recargando...';
+                msg.style.color = '#065f46';
+                setTimeout(function() { location.reload(); }, 1500);
+            } else {
+                msg.textContent = 'Error: ' + (data.error || 'falló');
+                msg.style.color = '#9b1c1c';
+            }
+        });
+    }).catch(function(err) {
+        msg.textContent = 'Error de conexión.';
+        msg.style.color = '#9b1c1c';
+    });
+}
+</script>
+{% endverbatim %}
+{% endblock %}

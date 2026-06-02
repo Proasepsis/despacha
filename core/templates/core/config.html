@@ -1,0 +1,48 @@
+{% extends "cortes/base.html" %}
+
+{% block title %}Configuración — Despacha{% endblock %}
+
+{% block content %}
+<h2>Configuración del sistema</h2>
+<p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:13px;">Entorno: <strong>{{ env_name }}</strong> · DEBUG: <strong>{{ debug|yesno:"Activado,Desactivado" }}</strong></p>
+
+<div class="card">
+    <div class="card-header">Google Drive</div>
+    <table style="box-shadow:none;max-width:500px;">
+        <tr><td>Service Account</td><td>{% if drive_ok %}<span style="color:var(--success);">Configurado</span>{% else %}<span style="color:var(--danger);">No configurado</span>{% endif %}</td></tr>
+        <tr><td>Root Folder ID</td><td>{% if drive_root %}{{ drive_root }}{% else %}<em style="color:var(--text-muted);">vacío</em>{% endif %}</td></tr>
+    </table>
+    {% if not drive_ok %}
+    <div class="msg msg-warning" style="margin-top:1rem;">
+        Para habilitar Drive, configura <code>DRIVE_SERVICE_ACCOUNT_JSON</code> y <code>DRIVE_ROOT_FOLDER_ID</code> en el archivo <code>.env</code> del servidor.
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header">Correo SMTP</div>
+    <table style="box-shadow:none;max-width:500px;">
+        <tr><td>Estado</td><td>{% if smtp_ok %}<span style="color:var(--success);">Configurado</span>{% else %}<span style="color:var(--warning);">Sin credenciales</span>{% endif %}</td></tr>
+        <tr><td>Host</td><td>{{ email_host|default:"smtp.gmail.com" }}</td></tr>
+        <tr><td>Puerto</td><td>587 (TLS)</td></tr>
+    </table>
+</div>
+
+<div class="card">
+    <div class="card-header">Enlaces administrativos</div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        <a href="{% url 'admin:productos_producto_changelist' %}" class="btn btn-outline">Productos</a>
+        <a href="{% url 'admin:productos_ciudad_changelist' %}" class="btn btn-outline">Ciudades</a>
+        <a href="{% url 'admin:core_parametrosalida_changelist' %}" class="btn btn-outline">Parámetros de salida</a>
+        <a href="{% url 'admin:core_reglaclasificacion_changelist' %}" class="btn btn-outline">Reglas de clasificación</a>
+        <a href="{% url 'admin:core_notificaciondestinatarios_changelist' %}" class="btn btn-outline">Notificaciones</a>
+        <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-outline">Usuarios</a>
+        <a href="{% url 'admin:auth_group_changelist' %}" class="btn btn-outline">Grupos</a>
+        <a href="{% url 'admin_auditoria' %}" class="btn btn-outline">Auditoría</a>
+    </div>
+</div>
+
+<div style="margin-top:1.5rem;color:var(--text-muted);font-size:12px;">
+    <p>Atajos de teclado: <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+S</kbd> Guardar · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+R</kbd> Volver · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+L</kbd> Lista · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+N</kbd> Cargar nuevo · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+G</kbd> Config · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+C</kbd> Admin</p>
+</div>
+{% endblock %}

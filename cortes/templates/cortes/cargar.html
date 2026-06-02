@@ -1,0 +1,40 @@
+{% extends "cortes/base.html" %}
+
+{% block title %}Cargar corte — Despacha{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h2 style="margin:0;flex:1;">Cargar nuevo corte</h2>
+    <a href="{% url 'lista_cortes' %}" class="btn btn-outline" data-kb="back">Volver a lista</a>
+</div>
+
+<div class="card" style="max-width:520px;">
+    <p style="margin-bottom:1rem;font-size:13px;color:var(--text-muted);">
+        Corte sugerido según la hora: <strong>Corte {{ corte_sugerido }}</strong>
+    </p>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="msg msg-error">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="form-group">
+            <label for="{{ form.archivo.id_for_label }}">{{ form.archivo.label }}</label>
+            {{ form.archivo }}
+            <span style="font-size:11px;color:var(--text-muted);">{{ form.archivo.help_text }}</span>
+            {% if form.archivo.errors %}<ul class="errorlist">{% for e in form.archivo.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.formato_origen.id_for_label }}">Formato</label>
+            {{ form.formato_origen }}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.numero_corte.id_for_label }}">Número de corte</label>
+            {{ form.numero_corte }}
+        </div>
+
+        <button type="submit" class="btn btn-primary" accesskey="s">Cargar y procesar</button>
+    </form>
+</div>
+{% endblock %}

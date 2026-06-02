@@ -1,0 +1,33 @@
+{% extends "cortes/base.html" %}
+
+{% block title %}Corte {{ corte.numero_corte }} · {{ corte.fecha|date:"d M Y" }} — Despacha{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h2 style="margin:0;flex:1;">Corte {{ corte.numero_corte }} · {{ corte.fecha|date:"d M Y" }}</h2>
+    <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
+</div>
+
+<div class="card">
+    <table style="box-shadow:none;max-width:400px;">
+        <tr><td>Documentos</td><td><strong>{{ documentos_count }}</strong></td></tr>
+        <tr><td>Líneas totales</td><td><strong>{{ lineas_count }}</strong></td></tr>
+        <tr>
+            <td>Líneas sin maestra</td>
+            <td>{% if sin_maestro_count > 0 %}<strong style="color:var(--danger);">{{ sin_maestro_count }}</strong>{% else %}<strong style="color:var(--success);">0</strong>{% endif %}</td>
+        </tr>
+    </table>
+</div>
+
+{% if sin_maestro_count > 0 %}
+    <div class="msg msg-error">
+        Hay {{ sin_maestro_count }} línea(s) sin producto en la maestra. Resuélvelas en el <a href="{% url 'admin:productos_producto_changelist' %}">admin de productos</a>.
+    </div>
+{% else %}
+    <div class="msg msg-success">
+        Todas las líneas tienen producto en la maestra. Listo para generar.
+    </div>
+{% endif %}
+
+<a href="{% url 'lista_cortes' %}" class="btn btn-outline" data-kb="back">&laquo; Volver a lista</a>
+{% endblock %}

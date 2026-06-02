@@ -1,0 +1,1 @@
+from .adaptador import AdaptadorPlantilla  # noqa: F401
