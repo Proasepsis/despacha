@@ -20,6 +20,7 @@ from cortes.forms import CargarCorteForm
 from cortes.servicios.corte_por_hora import sugerir_corte
 from cortes.servicios.cargar import (
     cargar_archivo,
+    ErrorCarga,
     ErrorDuplicado,
     ErrorValidacionAdaptador,
     ErrorCombinacionFechaCorte,
@@ -55,7 +56,7 @@ class ListaCortesView(LoginRequiredMixin, ListView):
             fecha__gte=hace_30_dias,
         ).annotate(
             documentos_count=Count("documentos"),
-        )
+        ).order_by("-fecha", "numero_corte", "adicional_letra")
 
     def get_context_data(self, **kwargs):
         from itertools import groupby
@@ -116,6 +117,12 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                 "msg_sugerencia": str(e),
             })
         except ErrorCombinacionFechaCorte as e:
+            form.add_error(None, str(e))
+            return render(request, self.template_name, {
+                "form": form,
+                "corte_sugerido": sugerir_corte(),
+            })
+        except ErrorCarga as e:
             form.add_error(None, str(e))
             return render(request, self.template_name, {
                 "form": form,
