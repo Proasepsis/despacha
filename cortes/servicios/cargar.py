@@ -31,13 +31,25 @@ class ErrorCombinacionFechaCorte(ErrorCarga):
     pass
 
 
+def _siguiente_letra_adicional(fecha_corte: date, numero_corte: int) -> str:
+    usadas = set(
+        Corte.objects.filter(fecha=fecha_corte, numero_corte=numero_corte)
+        .exclude(adicional_letra="")
+        .values_list("adicional_letra", flat=True)
+    )
+    for letra in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        if letra not in usadas:
+            return letra
+    raise ErrorCarga("Se alcanzó el límite de cortes adicionales (Z).")
+
+
 @transaction.atomic
 def cargar_archivo(
     archivo: UploadedFile,
     usuario: User,
     formato_origen: str,
     numero_corte: int,
-    adicional_letra: str = "",
+    es_adicional: bool = False,
     fecha: date | None = None,
 ) -> tuple[Corte, ResultadoProcesamiento]:
     contenido = archivo.read()
@@ -55,14 +67,17 @@ def cargar_archivo(
     with open(ruta_guardado, "wb") as f:
         f.write(contenido)
 
+    fecha_corte = fecha or date.today()
+    adicional_letra = _siguiente_letra_adicional(fecha_corte, numero_corte) if es_adicional else ""
+
     corte = Corte.objects.create(
         archivo=archivo.name,
         formato_origen=formato_origen,
         hash_sha256=hash_sha256,
         usuario_carga=usuario,
-        fecha=fecha or date.today(),
+        fecha=fecha_corte,
         numero_corte=numero_corte,
-        adicional_letra=adicional_letra.upper() if adicional_letra else "",
+        adicional_letra=adicional_letra,
         estado="cargado",
     )
 
@@ -79,8 +94,8 @@ def cargar_archivo(
         fecha=corte.fecha,
         numero_corte=numero_corte,
         adicional_letra=corte.adicional_letra,
-    ).first()
-    if existente_combinacion and existente_combinacion.pk != corte.pk:
+    ).exclude(pk=corte.pk).first()
+    if existente_combinacion:
         corte.delete()
         raise ErrorCombinacionFechaCorte(
             f"Ya existe {corte.display_corte} para el {corte.fecha}"

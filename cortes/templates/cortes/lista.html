@@ -10,44 +10,40 @@
     {% endif %}
 </div>
 
-<div class="table-wrap">
-    <table>
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Corte</th>
-                <th>Estado</th>
-                <th>Facturas</th>
-                <th>Versión</th>
-                <th>Cargado por</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for corte in cortes %}
-            <tr data-corte-url="{% url 'detalle_corte' corte.pk %}" style="cursor:pointer;">
-                <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);white-space:nowrap;">
-                    {{ corte.fecha|date:"d/m/Y" }}
-                </td>
-                <td style="font-weight:500;">{{ corte.display_corte }}</td>
-                <td><span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span></td>
-                <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);text-align:center;">
-                    {{ corte.documentos_count }}
-                </td>
-                <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);">
-                    v{{ corte.version_actual }}
-                </td>
-                <td style="color:var(--text-soft);font-size:13px;">{{ corte.usuario_carga.username }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:3rem;font-size:13px;">
-                    No hay cortes en los últimos 30 días.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+{% regroup cortes by fecha as dias %}
+
+{% if cortes %}
+<div class="cortes-feed">
+{% for dia in dias %}
+    <div class="day-group">
+        <div class="day-divider">
+            <span class="day-label">{{ dia.grouper|date:"d/m/Y" }}</span>
+        </div>
+        <div class="day-cards">
+        {% for corte in dia.list %}
+            <a href="{% url 'detalle_corte' corte.pk %}" class="corte-card">
+                <div class="corte-card-main">
+                    <span class="corte-title">{{ corte.display_corte }}</span>
+                    <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
+                </div>
+                <div class="corte-card-meta">
+                    <span>{{ corte.documentos_count }} facturas</span>
+                    <span class="meta-dot">·</span>
+                    <span>v{{ corte.version_actual }}</span>
+                    <span class="meta-dot">·</span>
+                    <span>{{ corte.usuario_carga.username }}</span>
+                </div>
+            </a>
+        {% endfor %}
+        </div>
+    </div>
+{% endfor %}
 </div>
+{% else %}
+<p style="text-align:center;color:var(--text-muted);padding:3rem;font-size:13px;">
+    No hay cortes en los últimos 30 días.
+</p>
+{% endif %}
 
 {% if is_paginated %}
 <div class="pagination">
@@ -60,16 +56,100 @@
     {% endif %}
 </div>
 {% endif %}
+
+<style>
+.cortes-feed { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.day-divider {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    margin-bottom: .5rem;
+}
+.day-divider::before,
+.day-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+.day-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 1.5px;
+    white-space: nowrap;
+}
+
+.day-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.corte-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .6rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    text-decoration: none;
+    color: var(--text);
+    transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.corte-card:hover {
+    background: var(--surface-raised);
+    border-color: var(--border-mid);
+    box-shadow: var(--shadow);
+    color: var(--text);
+}
+.corte-card:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+    border-color: var(--accent);
+}
+
+.corte-card-main {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+}
+.corte-title {
+    font-weight: 600;
+    font-size: 13px;
+}
+.corte-card-meta {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.meta-dot { color: var(--border-mid); }
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var rows = document.querySelectorAll('tbody tr[data-corte-url]');
-    rows.forEach(function(row) {
-        row.addEventListener('click', function() {
-            location.href = row.dataset.corteUrl;
-        });
+    var cards = Array.from(document.querySelectorAll('.corte-card'));
+    if (!cards.length) return;
+    cards.forEach(function(c, i) {
+        c.setAttribute('tabindex', i === 0 ? '0' : '-1');
+        c.setAttribute('data-nav-item', '');
     });
-    initKeyNav(rows, {
-        onActivate: function(row) { location.href = row.dataset.corteUrl; }
+    function moveTo(card) {
+        cards.forEach(function(c) { c.setAttribute('tabindex', '-1'); });
+        card.setAttribute('tabindex', '0');
+        card.focus();
+    }
+    cards.forEach(function(card, i) {
+        card.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown' && i < cards.length - 1) { e.preventDefault(); moveTo(cards[i + 1]); }
+            if (e.key === 'ArrowUp'   && i > 0)                { e.preventDefault(); moveTo(cards[i - 1]); }
+        });
     });
 });
 </script>

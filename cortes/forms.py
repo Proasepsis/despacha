@@ -14,17 +14,7 @@ class CargarCorteForm(forms.Form):
         choices=[(1, "Corte 1"), (2, "Corte 2")],
         help_text="Sugerido según la hora; puede ajustarse.",
     )
-    adicional_letra = forms.CharField(
-        required=False,
-        max_length=1,
-        label="Letra adicional",
-    )
-
-    def clean_adicional_letra(self):
-        val = self.cleaned_data.get("adicional_letra", "").strip().upper()
-        if val and not val.isalpha():
-            raise forms.ValidationError("Solo se permite una letra (A–Z).")
-        return val
+    es_adicional = forms.BooleanField(required=False, label="Es adicional")
 
     def clean_archivo(self):
         archivo = self.cleaned_data["archivo"]
