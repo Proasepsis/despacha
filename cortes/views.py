@@ -15,7 +15,7 @@ from datetime import timedelta
 
 from django.db.models import Count
 
-from cortes.models import Corte, Documento, Linea
+from cortes.models import Corte, Documento, Linea, PresenciaCorte
 from cortes.forms import CargarCorteForm
 from cortes.servicios.corte_por_hora import sugerir_corte
 from cortes.servicios.cargar import (
@@ -24,12 +24,7 @@ from cortes.servicios.cargar import (
     ErrorValidacionAdaptador,
     ErrorCombinacionFechaCorte,
 )
-from cortes.servicios.bloqueo import (
-    intentar_tomar_bloqueo,
-    refrescar_bloqueo,
-    liberar_bloqueo,
-    info_bloqueo,
-)
+from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
 from cortes.servicios.generar import generar_y_entregar
@@ -37,9 +32,14 @@ from cortes.servicios.generar import generar_y_entregar
 logger = logging.getLogger(__name__)
 
 
-class EsOperarioOAdminMixin(UserPassesTestMixin):
+class EsFacturacionOAdminMixin(UserPassesTestMixin):
     def test_func(self):
-        return self.request.user.groups.filter(name__in=["operario", "admin"]).exists()
+        return self.request.user.groups.filter(name__in=["facturacion", "admin"]).exists()
+
+
+class EsAlmacenamientoOAdminMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=["almacenamiento", "admin"]).exists()
 
 
 class ListaCortesView(LoginRequiredMixin, ListView):
@@ -57,7 +57,7 @@ class ListaCortesView(LoginRequiredMixin, ListView):
         )
 
 
-class CargarCorteView(LoginRequiredMixin, EsOperarioOAdminMixin, View):
+class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
     template_name = "cortes/cargar.html"
 
     def get(self, request):
@@ -101,7 +101,7 @@ class CargarCorteView(LoginRequiredMixin, EsOperarioOAdminMixin, View):
                 "corte_sugerido": sugerir_corte(),
             })
 
-        return redirect("detalle_corte", pk=corte.pk)
+        return redirect("lista_cortes")
 
 
 class DetalleCorteView(LoginRequiredMixin, DetailView):
@@ -115,16 +115,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
         user = self.request.user
 
         grupos = set(user.groups.values_list("name", flat=True))
-        puede_editar = bool(grupos & {"operario", "admin"})
-        es_admin = "admin" in grupos
-
-        bloqueo_info = info_bloqueo(corte)
-        es_editor = False
-        if bloqueo_info and bloqueo_info["usuario_id"] == user.pk:
-            es_editor = True
-        elif not bloqueo_info and puede_editar:
-            es_editor = intentar_tomar_bloqueo(corte, user)
-            bloqueo_info = info_bloqueo(corte)
+        es_editor = bool(grupos & {"almacenamiento", "admin"})
 
         documentos = corte.documentos.prefetch_related("lineas").all()
         docs_data = []
@@ -160,9 +151,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
             "documentos_count": len(docs_data),
             "lineas_count": sum(len(d["lineas"]) for d in docs_data),
             "sin_maestro_count": sin_maestro_count,
-            "bloqueo_info": bloqueo_info,
             "es_editor": es_editor,
-            "es_admin": es_admin,
             "clasificador1_opciones": ["EMBALAR", "NO EMBALAR", "PREGUNTAR"],
             "prioridad_opciones": ["PRIORIDAD", "NO PRIORIDAD"],
         })
@@ -186,9 +175,9 @@ class EditarCorteView(LoginRequiredMixin, View):
         if not tipo or not obj_id or not campo:
             return HttpResponseBadRequest("Faltan campos requeridos")
 
-        if not refrescar_bloqueo(corte, request.user):
-            if not request.user.groups.filter(name="admin").exists():
-                return HttpResponseForbidden("No tienes el bloqueo de este corte")
+        grupos = set(request.user.groups.values_list("name", flat=True))
+        if not bool(grupos & {"almacenamiento", "admin"}):
+            return HttpResponseForbidden("Sin permisos para editar")
 
         try:
             with transaction.atomic():
@@ -261,9 +250,9 @@ class SplitDocumentoView(LoginRequiredMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
 
-        if not refrescar_bloqueo(corte, request.user):
-            if not request.user.groups.filter(name="admin").exists():
-                return HttpResponseForbidden("No tienes el bloqueo de este corte")
+        grupos = set(request.user.groups.values_list("name", flat=True))
+        if not bool(grupos & {"almacenamiento", "admin"}):
+            return HttpResponseForbidden("Sin permisos para editar")
 
         try:
             body = json.loads(request.body)
@@ -294,9 +283,9 @@ class DeshacerSplitView(LoginRequiredMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
 
-        if not refrescar_bloqueo(corte, request.user):
-            if not request.user.groups.filter(name="admin").exists():
-                return HttpResponseForbidden("No tienes el bloqueo de este corte")
+        grupos = set(request.user.groups.values_list("name", flat=True))
+        if not bool(grupos & {"almacenamiento", "admin"}):
+            return HttpResponseForbidden("Sin permisos para editar")
 
         try:
             body = json.loads(request.body)
@@ -331,9 +320,9 @@ class GenerarCorteView(LoginRequiredMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
 
-        if not refrescar_bloqueo(corte, request.user):
-            if not request.user.groups.filter(name="admin").exists():
-                return HttpResponseForbidden("No tienes el bloqueo de este corte")
+        grupos = set(request.user.groups.values_list("name", flat=True))
+        if not bool(grupos & {"almacenamiento", "admin"}):
+            return HttpResponseForbidden("Sin permisos para generar")
 
         destinos = request.POST.getlist("destinos")
         motivo = request.POST.get("motivo", "")
@@ -387,6 +376,34 @@ class GenerarCorteView(LoginRequiredMixin, View):
             return response
         except Exception:
             return fallback_response
+
+
+class PresenciaPingView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        corte = get_object_or_404(Corte, pk=pk)
+        PresenciaCorte.objects.update_or_create(
+            user=request.user,
+            corte=corte,
+            defaults={"visto_en": timezone.now()},
+        )
+        return JsonResponse({"ok": True})
+
+    def get(self, request, pk):
+        corte = get_object_or_404(Corte, pk=pk)
+        limite = timezone.now() - timedelta(seconds=25)
+        PresenciaCorte.objects.filter(corte=corte, visto_en__lt=limite).delete()
+        activos = PresenciaCorte.objects.filter(corte=corte).select_related("user")
+        usuarios = []
+        for p in activos:
+            first = p.user.first_name[:1] if p.user.first_name else ""
+            last = p.user.last_name[:1] if p.user.last_name else ""
+            iniciales = (first + last).upper() or p.user.username[:2].upper()
+            usuarios.append({
+                "username": p.user.username,
+                "iniciales": iniciales,
+                "soy_yo": p.user_id == request.user.pk,
+            })
+        return JsonResponse({"usuarios": usuarios})
 
 
 class LogoutView(View):
