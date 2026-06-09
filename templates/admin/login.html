@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso — Despacha</title>
+    <script>(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Figtree:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        /* Claro (default) */
+        :root, html[data-theme="light"] {
+            --bg:             #1a1f2e;
+            --surface:        #ffffff;
+            --surface-raised: #f7f9fc;
+            --border:         #dde3ee;
+            --border-mid:     #c8d2e4;
+            --accent:         #0284c7;
+            --accent-dim:     rgba(2,132,199,.08);
+            --accent-glow:    rgba(2,132,199,.2);
+            --danger:         #dc2626;
+            --text:           #0f172a;
+            --text-soft:      #475569;
+            --text-muted:     #94a3b8;
+            --font-ui:        'Figtree', system-ui, sans-serif;
+            --font-display:   'Syne', system-ui, sans-serif;
+            --font-mono:      'JetBrains Mono', monospace;
+        }
+
+        /* Oscuro */
+        html[data-theme="dark"] {
+            --bg:             #080b12;
+            --surface:        #0e1420;
+            --surface-raised: #141c2e;
+            --border:         #1e2a3f;
+            --border-mid:     #253349;
+            --accent:         #22d3ee;
+            --accent-dim:     rgba(34,211,238,.08);
+            --accent-glow:    rgba(34,211,238,.2);
+            --danger:         #f87171;
+            --text:           #c8d6ef;
+            --text-soft:      #5a7a9e;
+            --text-muted:     #2d4060;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-ui);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: .5;
+            pointer-events: none;
+        }
+
+        /* radial glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(ellipse at center, rgba(34,211,238,.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .login-wrap {
+            width: 100%;
+            max-width: 380px;
+            padding: 1rem;
+            position: relative;
+            z-index: 1;
+            animation: rise .5s ease both;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .brand .wordmark {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: #fff;
+            -webkit-text-stroke: 1px rgba(0,0,0,.35);
+            text-stroke: 1px rgba(0,0,0,.35);
+            text-shadow: 0 8px 24px rgba(0,0,0,.45);
+            line-height: 1;
+        }
+
+        .brand .wordmark em {
+            font-style: normal;
+            color: var(--accent);
+        }
+
+        .brand .sub {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.75rem;
+            box-shadow:
+                0 0 0 1px rgba(34,211,238,.04),
+                0 24px 48px rgba(0,0,0,.5);
+        }
+
+        .error-box {
+            background: rgba(248,113,113,.08);
+            border: 1px solid rgba(248,113,113,.25);
+            border-left: 3px solid var(--danger);
+            border-radius: 6px;
+            padding: 0.6rem 0.85rem;
+            margin-bottom: 1.25rem;
+            font-size: 13px;
+            color: #fca5a5;
+        }
+
+        .field {
+            margin-bottom: 1rem;
+        }
+
+        .field label {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border-mid);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: var(--font-ui);
+            color: var(--text);
+            transition: border-color .14s, box-shadow .14s;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+
+        .field input::placeholder { color: var(--text-muted); }
+
+        .submit-btn {
+            width: 100%;
+            margin-top: 0.25rem;
+            padding: 0.65rem;
+            background: var(--accent);
+            color: #050a10;
+            font-family: var(--font-ui);
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            letter-spacing: .2px;
+            transition: background .14s, box-shadow .14s;
+        }
+
+        .submit-btn:hover {
+            background: #38e8ff;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: .5px;
+        }
+    </style>
+</head>
+<body>
+<div class="login-wrap">
+    <div class="brand">
+        <div class="wordmark">DESP<em>A</em>CHA</div>
+        <div class="sub">Sistema de gestión</div>
+    </div>
+
+    <div class="card">
+        {% if form.errors %}
+        <div class="error-box">
+            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            {% if not form.non_field_errors %}Usuario o contraseña incorrectos.{% endif %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ app_path }}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% if next == '/admin/' or not next %}/cortes/{% else %}{{ next }}{% endif %}">
+
+            <div class="field">
+                <label for="id_username">Usuario</label>
+                <input type="text" id="id_username" name="username"
+                       value="{{ form.username.value|default:'' }}"
+                       autocomplete="username" autofocus
+                       placeholder="nombre de usuario">
+            </div>
+
+            <div class="field">
+                <label for="id_password">Contraseña</label>
+                <input type="password" id="id_password" name="password"
+                       autocomplete="current-password"
+                       placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="submit-btn">Ingresar</button>
+        </form>
+    </div>
+
+    <p class="footer-note">Proasepsis · Acceso restringido</p>
+</div>
+</body>
+</html>

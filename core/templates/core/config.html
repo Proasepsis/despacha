@@ -3,46 +3,83 @@
 {% block title %}Configuración — Despacha{% endblock %}
 
 {% block content %}
-<h2>Configuración del sistema</h2>
-<p style="color:var(--text-muted);margin-bottom:1.5rem;font-size:13px;">Entorno: <strong>{{ env_name }}</strong> · DEBUG: <strong>{{ debug|yesno:"Activado,Desactivado" }}</strong></p>
+<div class="toolbar">
+    <h2 style="flex:1;">Configuración del sistema</h2>
+</div>
+<p style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:1.75rem;letter-spacing:.5px;">
+    ENTORNO <span style="color:var(--text-soft);">{{ env_name }}</span>
+    &nbsp;·&nbsp;
+    DEBUG <span style="color:{% if debug %}var(--warning){% else %}var(--success){% endif %};">{{ debug|yesno:"ACTIVO,DESACTIVADO" }}</span>
+</p>
 
-<div class="card">
-    <div class="card-header">Google Drive</div>
-    <table style="box-shadow:none;max-width:500px;">
-        <tr><td>Service Account</td><td>{% if drive_ok %}<span style="color:var(--success);">Configurado</span>{% else %}<span style="color:var(--danger);">No configurado</span>{% endif %}</td></tr>
-        <tr><td>Root Folder ID</td><td>{% if drive_root %}{{ drive_root }}{% else %}<em style="color:var(--text-muted);">vacío</em>{% endif %}</td></tr>
-    </table>
-    {% if not drive_ok %}
-    <div class="msg msg-warning" style="margin-top:1rem;">
-        Para habilitar Drive, configura <code>DRIVE_SERVICE_ACCOUNT_JSON</code> y <code>DRIVE_ROOT_FOLDER_ID</code> en el archivo <code>.env</code> del servidor.
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem;">
+
+    <div class="card">
+        <div class="card-header">Google Drive</div>
+        <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;color:var(--text-soft);">Service Account</span>
+                {% if drive_ok %}
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--success);">● Configurado</span>
+                {% else %}
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--danger);">● No configurado</span>
+                {% endif %}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;color:var(--text-soft);">Root Folder ID</span>
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+                    {% if drive_root %}{{ drive_root }}{% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+        {% if not drive_ok %}
+        <div class="msg msg-warning" style="margin-top:1rem;font-size:12px;">
+            Configura <code>DRIVE_SERVICE_ACCOUNT_JSON</code> y <code>DRIVE_ROOT_FOLDER_ID</code> en <code>.env</code>.
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
+
+    <div class="card">
+        <div class="card-header">Correo SMTP</div>
+        <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;color:var(--text-soft);">Estado</span>
+                {% if smtp_ok %}
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--success);">● Configurado</span>
+                {% else %}
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--warning);">● Sin credenciales</span>
+                {% endif %}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;color:var(--text-soft);">Host</span>
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">{{ email_host|default:"smtp.gmail.com" }}:587</span>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <div class="card">
-    <div class="card-header">Correo SMTP</div>
-    <table style="box-shadow:none;max-width:500px;">
-        <tr><td>Estado</td><td>{% if smtp_ok %}<span style="color:var(--success);">Configurado</span>{% else %}<span style="color:var(--warning);">Sin credenciales</span>{% endif %}</td></tr>
-        <tr><td>Host</td><td>{{ email_host|default:"smtp.gmail.com" }}</td></tr>
-        <tr><td>Puerto</td><td>587 (TLS)</td></tr>
-    </table>
-</div>
-
-<div class="card">
-    <div class="card-header">Enlaces administrativos</div>
-    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-        <a href="{% url 'admin:productos_producto_changelist' %}" class="btn btn-outline">Productos</a>
-        <a href="{% url 'admin:productos_ciudad_changelist' %}" class="btn btn-outline">Ciudades</a>
-        <a href="{% url 'admin:core_parametrosalida_changelist' %}" class="btn btn-outline">Parámetros de salida</a>
-        <a href="{% url 'admin:core_reglaclasificacion_changelist' %}" class="btn btn-outline">Reglas de clasificación</a>
-        <a href="{% url 'admin:core_notificaciondestinatarios_changelist' %}" class="btn btn-outline">Notificaciones</a>
-        <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-outline">Usuarios</a>
-        <a href="{% url 'admin:auth_group_changelist' %}" class="btn btn-outline">Grupos</a>
-        <a href="{% url 'admin_auditoria' %}" class="btn btn-outline">Auditoría</a>
+    <div class="card-header">Datos maestros</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+        <a href="{% url 'admin:productos_producto_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Productos</a>
+        <a href="{% url 'admin:productos_ciudad_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Ciudades</a>
+        <a href="{% url 'admin:core_parametrosalida_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Parámetros de salida</a>
+        <a href="{% url 'admin:core_reglaclasificacion_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Reglas de clasificación</a>
+        <a href="{% url 'admin:core_notificaciondestinatarios_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Notificaciones</a>
+        <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Usuarios</a>
+        <a href="{% url 'admin:auth_group_changelist' %}" class="btn btn-ghost" style="font-size:12px;">Grupos</a>
+        <a href="{% url 'admin_auditoria' %}" class="btn btn-ghost" style="font-size:12px;">Auditoría</a>
     </div>
 </div>
 
-<div style="margin-top:1.5rem;color:var(--text-muted);font-size:12px;">
-    <p>Atajos de teclado: <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+S</kbd> Guardar · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+R</kbd> Volver · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+L</kbd> Lista · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+N</kbd> Cargar nuevo · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+G</kbd> Config · <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px;">Alt+C</kbd> Admin</p>
+<div style="margin-top:1.5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:.5px;">
+    ATAJOS &nbsp;·&nbsp;
+    <kbd>Alt+S</kbd> Guardar &nbsp;
+    <kbd>Alt+R</kbd> Volver &nbsp;
+    <kbd>Alt+L</kbd> Lista &nbsp;
+    <kbd>Alt+N</kbd> Cargar &nbsp;
+    <kbd>Alt+G</kbd> Config &nbsp;
+    <kbd>Alt+C</kbd> Maestros
 </div>
 {% endblock %}

@@ -103,6 +103,13 @@ class AdaptadorPlantilla(AdaptadorFormato):
 
         ws = wb["Hoja1"]
 
+        if ws.max_column is None:
+            wb.close()
+            raise ValueError(
+                "El archivo no contiene datos en 'Hoja1'. "
+                "Verifique que el archivo no esté vacío."
+            )
+
         header_row = 5
         encabezados_leidos = []
         for col in range(1, ws.max_column + 1):
@@ -127,6 +134,10 @@ class AdaptadorPlantilla(AdaptadorFormato):
 
         wb = load_workbook(ruta_archivo, read_only=True, data_only=True)
         ws = wb["Hoja1"]
+
+        if ws.max_column is None:
+            wb.close()
+            return []
 
         # Leer fila 5 como encabezados y mapear índices de columna con búsqueda parcial
         header_row = 5

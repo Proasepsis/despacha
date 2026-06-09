@@ -67,7 +67,7 @@ def cargar_archivo(
     try:
         adaptador = obtener_adaptador(formato_origen)
         adaptador.validar(ruta_guardado)
-    except ValueError as e:
+    except Exception as e:
         corte.delete()
         raise ErrorValidacionAdaptador(str(e)) from e
 
