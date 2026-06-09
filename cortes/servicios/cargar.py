@@ -5,7 +5,7 @@ from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from cortes.models import Corte
 from cortes.servicios.procesar import procesar_documentos_internos, ResultadoProcesamiento
@@ -84,16 +84,24 @@ def cargar_archivo(
 
     adicional_letra = _siguiente_letra_adicional(fecha_corte, numero_corte) if es_adicional else ""
 
-    corte = Corte.objects.create(
-        archivo=archivo.name,
-        formato_origen=formato_origen,
-        hash_sha256=hash_sha256,
-        usuario_carga=usuario,
-        fecha=fecha_corte,
-        numero_corte=numero_corte,
-        adicional_letra=adicional_letra,
-        estado="cargado",
-    )
+    try:
+        with transaction.atomic():
+            corte = Corte.objects.create(
+                archivo=archivo.name,
+                formato_origen=formato_origen,
+                hash_sha256=hash_sha256,
+                usuario_carga=usuario,
+                fecha=fecha_corte,
+                numero_corte=numero_corte,
+                adicional_letra=adicional_letra,
+                estado="cargado",
+            )
+    except IntegrityError:
+        if not es_adicional:
+            raise ErrorSugerirAdicional(numero_corte, fecha_corte)
+        raise ErrorCombinacionFechaCorte(
+            f"Ya existe Corte {numero_corte}{adicional_letra} para el {fecha_corte:%d/%m/%Y}."
+        )
 
     suffix = Path(archivo.name).suffix or ".xlsx"
     fd, tmp_path_str = tempfile.mkstemp(suffix=suffix)
