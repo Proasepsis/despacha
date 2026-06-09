@@ -154,9 +154,8 @@
                 <label style="font-size:13px;color:var(--text-soft);display:flex;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:11px;">
                     <input type="checkbox" name="destinos" value="descarga" checked style="width:auto;"> Descargar
                 </label>
-                <label style="font-size:13px;color:var(--text-soft);display:flex;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:11px;">
-                    <input type="checkbox" name="destinos" value="drive" checked style="width:auto;"> Google Drive
-                </label>
+                {# Google Drive oculto temporalmente — pendiente integración completa #}
+                <input type="hidden" name="destinos" value="drive">
                 {% if corte.version_actual > 0 %}
                 <input type="text" name="motivo" placeholder="Motivo de regeneración"
                        style="padding:.3rem .6rem;font-size:12px;width:180px;background:var(--surface-raised);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);">
