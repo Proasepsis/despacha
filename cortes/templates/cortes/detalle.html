@@ -74,11 +74,6 @@
                 </select>
             </label>
             <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="font-size:11px;padding:.2rem .6rem;">Ver líneas</button>
-            {% if not doc.creado_por_split %}
-            <button data-parent-doc-id="{{ doc.id }}" onclick="abrirSplit({{ doc.id }})" class="btn" style="font-size:11px;padding:.2rem .6rem;background:var(--warning-dim);color:var(--warning);border:1px solid rgba(251,191,36,.25);">Partir</button>
-            {% else %}
-            <button data-parent-doc-id="{{ doc.id }}" onclick="deshacerSplit({{ doc.id }})" class="btn btn-ghost" style="font-size:11px;padding:.2rem .6rem;">Deshacer split</button>
-            {% endif %}
             {% else %}
             <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">EMB {{ doc.clasificador1 }}</span>
             <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">PRIO {{ doc.observaciones }}</span>
@@ -91,7 +86,6 @@
         <table>
             <thead>
                 <tr>
-                    <th style="width:32px;">{% if es_editor %}<input type="checkbox" disabled>{% endif %}</th>
                     <th>Referencia</th>
                     <th>Descripción</th>
                     <th>Lote</th>
@@ -102,11 +96,6 @@
             <tbody>
                 {% for linea in doc.lineas %}
                 <tr>
-                    <td style="text-align:center;">
-                        {% if es_editor and not doc.creado_por_split %}
-                        <input type="checkbox" class="split-check-{{ doc.id }}" data-parent-doc-id="{{ doc.id }}" value="{{ linea.id }}">
-                        {% endif %}
-                    </td>
                     <td style="font-family:var(--font-mono);font-size:12px;">{{ linea.referencia }}</td>
                     <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="{{ linea.descripcion }}">{{ linea.descripcion }}</td>
                     <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);">{{ linea.lote }}</td>
@@ -201,34 +190,6 @@ function autosave(tipo, id, campo, valor) {
 function toggleLineas(docId) {
     var el = document.getElementById('lineas-' + docId);
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-function abrirSplit(docId) {
-    var checks = document.querySelectorAll('.split-check-' + docId + ':checked');
-    var ids = [];
-    checks.forEach(function(c) { ids.push(parseInt(c.value)); });
-    if (!ids.length) { alert('Selecciona al menos una línea para mover.'); return; }
-    if (!confirm('¿Mover ' + ids.length + ' línea(s) a un documento aparte?')) return;
-    fetch('/cortes/' + CORTE_ID + '/split/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
-        body: JSON.stringify({documento_id: docId, lineas_ids: ids})
-    }).then(function(r) {
-        if (r.ok) location.reload();
-        else r.json().then(function(d) { alert(d.error); });
-    });
-}
-
-function deshacerSplit(docId) {
-    if (!confirm('¿Deshacer el split y devolver las líneas al documento original?')) return;
-    fetch('/cortes/' + CORTE_ID + '/deshacer-split/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
-        body: JSON.stringify({documento_id: docId})
-    }).then(function(r) {
-        if (r.ok) location.reload();
-        else r.json().then(function(d) { alert(d.error); });
-    });
 }
 
 function forzarLiberacion() {
