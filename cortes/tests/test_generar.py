@@ -23,7 +23,7 @@ class GenerarArchivoTest(TestCase):
         Path("/tmp/test_media_gen/uploads").mkdir(parents=True, exist_ok=True)
 
         self.usuario = User.objects.create_user(username="op1", password="test")
-        grupo, _ = Group.objects.get_or_create(name="operario")
+        grupo, _ = Group.objects.get_or_create(name="almacenamiento")
         self.usuario.groups.add(grupo)
 
         self.corte = Corte.objects.create(
@@ -204,7 +204,7 @@ class GenerarRegeneracionTest(TestCase):
         Path("/tmp/test_media_gen2/uploads").mkdir(parents=True, exist_ok=True)
 
         self.usuario = User.objects.create_user(username="op1", password="test")
-        grupo, _ = Group.objects.get_or_create(name="operario")
+        grupo, _ = Group.objects.get_or_create(name="almacenamiento")
         self.usuario.groups.add(grupo)
 
         self.corte = Corte.objects.create(
@@ -294,7 +294,7 @@ class VistaGenerarTest(TestCase):
         Path("/tmp/test_media_gen3/uploads").mkdir(parents=True, exist_ok=True)
 
         self.usuario = User.objects.create_user(username="op1", password="test")
-        grupo, _ = Group.objects.get_or_create(name="operario")
+        grupo, _ = Group.objects.get_or_create(name="almacenamiento")
         self.usuario.groups.add(grupo)
 
         self.corte = Corte.objects.create(

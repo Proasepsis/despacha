@@ -53,15 +53,15 @@ class VistaCargarTest(TestCase):
     def setUp(self):
         Path("/tmp/test_media/uploads").mkdir(parents=True, exist_ok=True)
 
-        self.operario_user = User.objects.create_user(username="operario", password="test")
+        self.facturacion_user = User.objects.create_user(username="facturacion", password="test")
         self.consulta_user = User.objects.create_user(username="consulta", password="test")
         self.admin_user = User.objects.create_user(username="admin_test", password="test")
 
-        grupo_operario, _ = Group.objects.get_or_create(name="operario")
+        grupo_facturacion, _ = Group.objects.get_or_create(name="facturacion")
         grupo_consulta, _ = Group.objects.get_or_create(name="consulta")
         grupo_admin, _ = Group.objects.get_or_create(name="admin")
 
-        self.operario_user.groups.add(grupo_operario)
+        self.facturacion_user.groups.add(grupo_facturacion)
         self.consulta_user.groups.add(grupo_consulta)
         self.admin_user.groups.add(grupo_admin)
 
@@ -82,14 +82,14 @@ class VistaCargarTest(TestCase):
         response = self.client.get(reverse("cargar_corte"))
         self.assertEqual(response.status_code, 403)
 
-    def test_operario_puede_ver_formulario(self):
-        self.client.login(username="operario", password="test")
+    def test_facturacion_puede_ver_formulario(self):
+        self.client.login(username="facturacion", password="test")
         response = self.client.get(reverse("cargar_corte"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Cargar nuevo corte")
 
     def test_carga_exitosa(self):
-        self.client.login(username="operario", password="test")
+        self.client.login(username="facturacion", password="test")
 
         ruta = Path("/tmp/test_carga_exitosa.xlsx")
         _crear_excel_valido(ruta)
@@ -113,7 +113,7 @@ class VistaCargarTest(TestCase):
         self.assertGreater(corte.documentos.count(), 0)
 
     def test_archivo_duplicado(self):
-        self.client.login(username="operario", password="test")
+        self.client.login(username="facturacion", password="test")
 
         ruta = Path("/tmp/test_dup.xlsx")
         _crear_excel_valido(ruta)
@@ -136,7 +136,7 @@ class VistaCargarTest(TestCase):
         self.assertContains(response, "Ya existe un corte con este archivo")
 
     def test_archivo_malformado(self):
-        self.client.login(username="operario", password="test")
+        self.client.login(username="facturacion", password="test")
 
         ruta = Path("/tmp/test_mal.xlsx")
         _crear_excel_malformado(ruta)

@@ -11,5 +11,6 @@ urlpatterns = [
     path("<int:pk>/deshacer-split/", views.DeshacerSplitView.as_view(), name="deshacer_split"),
     path("<int:pk>/forzar-liberacion/", views.ForzarLiberacionView.as_view(), name="forzar_liberacion"),
     path("<int:pk>/generar/", views.GenerarCorteView.as_view(), name="generar_corte"),
+    path("<int:pk>/presencia/", views.PresenciaPingView.as_view(), name="presencia_corte"),
     path("salir/", views.LogoutView.as_view(), name="logout"),
 ]

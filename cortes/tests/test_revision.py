@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 
-from cortes.models import Corte, Documento, Linea, Auditoria
+from cortes.models import Corte, Documento, Linea, Auditoria, PresenciaCorte
 from cortes.servicios.split import partir_documento, deshacer_split
 from productos.models import Producto
 
@@ -17,15 +17,18 @@ class VistaRevisionTest(TestCase):
     def setUp(self):
         Path("/tmp/test_media_rev/uploads").mkdir(parents=True, exist_ok=True)
 
-        self.operario = User.objects.create_user(username="op1", password="test")
-        self.operario2 = User.objects.create_user(username="op2", password="test")
+        self.almacenamiento = User.objects.create_user(username="alm1", password="test")
+        self.almacenamiento2 = User.objects.create_user(username="alm2", password="test")
+        self.facturacion = User.objects.create_user(username="fac1", password="test")
         self.admin = User.objects.create_user(username="adm", password="test")
 
-        grupo_operario, _ = Group.objects.get_or_create(name="operario")
+        grupo_almacenamiento, _ = Group.objects.get_or_create(name="almacenamiento")
+        grupo_facturacion, _ = Group.objects.get_or_create(name="facturacion")
         grupo_admin, _ = Group.objects.get_or_create(name="admin")
 
-        self.operario.groups.add(grupo_operario)
-        self.operario2.groups.add(grupo_operario)
+        self.almacenamiento.groups.add(grupo_almacenamiento)
+        self.almacenamiento2.groups.add(grupo_almacenamiento)
+        self.facturacion.groups.add(grupo_facturacion)
         self.admin.groups.add(grupo_admin)
 
         Producto.objects.create(
@@ -39,7 +42,7 @@ class VistaRevisionTest(TestCase):
         self.corte = Corte.objects.create(
             archivo="test.xlsx",
             hash_sha256="abc_rev",
-            usuario_carga=self.operario,
+            usuario_carga=self.almacenamiento,
             fecha=date(2026, 5, 6),
             numero_corte=2,
             estado="en_revision",
@@ -75,12 +78,8 @@ class VistaRevisionTest(TestCase):
             unidad_empaque_snapshot=4,
         )
 
-    def _tomar_bloqueo(self):
-        self.client.login(username="op1", password="test")
-        self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
-
     def test_editar_clasificador1_autosave(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
 
         response = self.client.post(
             reverse("editar_corte", args=[self.corte.pk]),
@@ -106,7 +105,7 @@ class VistaRevisionTest(TestCase):
         self.assertEqual(auditoria.tipo_evento, "edicion")
 
     def test_editar_cantidad_linea(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
 
         response = self.client.post(
             reverse("editar_corte", args=[self.corte.pk]),
@@ -126,7 +125,7 @@ class VistaRevisionTest(TestCase):
         self.assertEqual(self.linea.cantidad_unidades, 100.50)
 
     def test_cantidad_negativa_rechazada(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
 
         response = self.client.post(
             reverse("editar_corte", args=[self.corte.pk]),
@@ -141,33 +140,40 @@ class VistaRevisionTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
-    def test_bloqueo_blando(self):
-        self._tomar_bloqueo()
+    def test_facturacion_no_puede_editar(self):
+        self.client.login(username="fac1", password="test")
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({
+                "tipo": "documento",
+                "id": self.doc.pk,
+                "campo": "clasificador1",
+                "valor": "NO EMBALAR",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
 
-        self.client.login(username="op2", password="test")
-        response = self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
-
+    def test_almacenamiento_puede_editar_sin_lock(self):
+        self.client.login(username="alm1", password="test")
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({
+                "tipo": "documento",
+                "id": self.doc.pk,
+                "campo": "clasificador1",
+                "valor": "NO EMBALAR",
+            }),
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 200)
-        self.corte.refresh_from_db()
-        self.assertEqual(self.corte.bloqueado_por, self.operario)
-
-    def test_liberacion_por_inactividad(self):
-        self._tomar_bloqueo()
-
-        self.corte.refresh_from_db()
-        self.assertEqual(self.corte.bloqueado_por, self.operario)
-
-        self.corte.bloqueado_hasta = timezone.now() - timedelta(minutes=1)
-        self.corte.save(update_fields=["bloqueado_hasta"])
-
-        self.client.login(username="op2", password="test")
-        self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
-
-        self.corte.refresh_from_db()
-        self.assertEqual(self.corte.bloqueado_por, self.operario2)
+        self.assertTrue(response.json()["ok"])
 
     def test_forzar_liberacion_admin(self):
-        self._tomar_bloqueo()
+        # Fijamos manualmente un bloqueo legacy para probar la liberación forzada
+        self.corte.bloqueado_por = self.almacenamiento
+        self.corte.bloqueado_hasta = timezone.now() + timedelta(minutes=30)
+        self.corte.save(update_fields=["bloqueado_por", "bloqueado_hasta"])
 
         self.client.login(username="adm", password="test")
         response = self.client.post(
@@ -195,7 +201,7 @@ class VistaRevisionTest(TestCase):
         self.assertEqual(nuevo.factura_sufijo, "")
 
     def test_autosave_subsanar_novedad_activar(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
         response = self.client.post(
             reverse("editar_corte", args=[self.corte.pk]),
             json.dumps({"tipo": "documento", "id": self.doc.pk,
@@ -208,7 +214,7 @@ class VistaRevisionTest(TestCase):
         self.assertTrue(self.doc.subsanar_novedad)
 
     def test_autosave_factura_sufijo_con_novedad_activa(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
         self.doc.subsanar_novedad = True
         self.doc.save()
         response = self.client.post(
@@ -223,7 +229,7 @@ class VistaRevisionTest(TestCase):
         self.assertEqual(self.doc.factura_sufijo, "A")
 
     def test_autosave_factura_sufijo_sin_novedad_rechazado(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
         response = self.client.post(
             reverse("editar_corte", args=[self.corte.pk]),
             json.dumps({"tipo": "documento", "id": self.doc.pk,
@@ -233,7 +239,7 @@ class VistaRevisionTest(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_desactivar_novedad_limpia_sufijo(self):
-        self._tomar_bloqueo()
+        self.client.login(username="alm1", password="test")
         self.doc.subsanar_novedad = True
         self.doc.factura_sufijo = "AA"
         self.doc.save()
@@ -251,9 +257,9 @@ class VistaRevisionTest(TestCase):
 
 class SplitDocumentoTest(TestCase):
     def setUp(self):
-        self.usuario = User.objects.create_user(username="op1", password="test")
-        grupo_operario, _ = Group.objects.get_or_create(name="operario")
-        self.usuario.groups.add(grupo_operario)
+        self.usuario = User.objects.create_user(username="alm1", password="test")
+        grupo_almacenamiento, _ = Group.objects.get_or_create(name="almacenamiento")
+        self.usuario.groups.add(grupo_almacenamiento)
 
         self.corte = Corte.objects.create(
             archivo="test.xlsx",
@@ -347,6 +353,52 @@ class SplitDocumentoTest(TestCase):
         self.l1.sin_maestro = True
         self.l1.save()
 
-        self.client.login(username="op1", password="test")
+        self.client.login(username="alm1", password="test")
         response = self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
         self.assertContains(response, "Generar (bloqueado)")
+
+
+class PresenciaPingViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="alm_pres", password="test")
+        grupo, _ = Group.objects.get_or_create(name="almacenamiento")
+        self.user.groups.add(grupo)
+
+        self.corte = Corte.objects.create(
+            archivo="t.xlsx",
+            hash_sha256="pres_xyz",
+            usuario_carga=self.user,
+            fecha=date(2026, 6, 9),
+            numero_corte=1,
+            estado="en_revision",
+        )
+
+    def test_post_crea_presencia(self):
+        self.client.login(username="alm_pres", password="test")
+        response = self.client.post(reverse("presencia_corte", args=[self.corte.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(PresenciaCorte.objects.filter(corte=self.corte, user=self.user).count(), 1)
+
+    def test_get_devuelve_activos(self):
+        self.client.login(username="alm_pres", password="test")
+        PresenciaCorte.objects.create(
+            user=self.user, corte=self.corte, visto_en=timezone.now()
+        )
+        response = self.client.get(reverse("presencia_corte", args=[self.corte.pk]))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data["usuarios"]), 1)
+        self.assertEqual(data["usuarios"][0]["username"], "alm_pres")
+        self.assertTrue(data["usuarios"][0]["soy_yo"])
+
+    def test_get_limpia_stale(self):
+        self.client.login(username="alm_pres", password="test")
+        old_time = timezone.now() - timedelta(seconds=30)
+        PresenciaCorte.objects.create(
+            user=self.user, corte=self.corte, visto_en=old_time
+        )
+        response = self.client.get(reverse("presencia_corte", args=[self.corte.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["usuarios"]), 0)
+        self.assertEqual(PresenciaCorte.objects.filter(corte=self.corte).count(), 0)
