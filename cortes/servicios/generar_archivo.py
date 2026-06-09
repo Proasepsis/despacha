@@ -60,6 +60,7 @@ def generar_xls(corte: Corte) -> bytes:
             ws.write(0, col_idx, col_name)
 
         for row_idx, (doc, linea) in enumerate(filas, start=1):
+            factura_completa = doc.factura + doc.factura_sufijo
             valores = {
                 "punto": params.get("punto", ""),
                 "identificacion": params.get("identificacion", ""),
@@ -67,14 +68,14 @@ def generar_xls(corte: Corte) -> bytes:
                 "ciudad": nombre_ciudad,
                 "direccion": params.get("direccion", ""),
                 "tipo_documento_referencia": params.get("tipo_doc_ref", ""),
-                "documento_referencia": doc.factura,
+                "documento_referencia": factura_completa,
                 "fecha_envio": "",
                 "hora_envio": "",
                 "bodega_alistamiento": "",
                 "sector_alistamiento": "",
                 "area_alistamiento": "",
                 "clasificador1": doc.clasificador1,
-                "clasificador2": doc.factura,
+                "clasificador2": factura_completa,
                 "observaciones": doc.observaciones,
                 "articulo": linea.referencia_snapshot,
                 "lote": linea.lote,

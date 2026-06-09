@@ -167,6 +167,36 @@ class GenerarArchivoTest(TestCase):
 
         self.assertIn("al menos un destino", str(ctx.exception))
 
+    def test_generar_xls_con_sufijo_novedad(self):
+        self.doc.subsanar_novedad = True
+        self.doc.factura_sufijo = "A"
+        self.doc.save()
+
+        xls_bytes = generar_xls(self.corte)
+        ruta = Path("/tmp/test_gen_sufijo.xls")
+        ruta.write_bytes(xls_bytes)
+
+        wb = xlrd.open_workbook(str(ruta))
+        ws = wb.sheet_by_name("BOGOTA")
+        col_map = {ws.cell_value(0, c): c for c in range(ws.ncols)}
+
+        self.assertEqual(ws.cell_value(1, col_map["documento_referencia"]), "FC001A")
+        self.assertEqual(ws.cell_value(1, col_map["clasificador2"]), "FC001A")
+        ruta.unlink(missing_ok=True)
+
+    def test_generar_xls_sin_sufijo_novedad(self):
+        xls_bytes = generar_xls(self.corte)
+        ruta = Path("/tmp/test_gen_sin_sufijo.xls")
+        ruta.write_bytes(xls_bytes)
+
+        wb = xlrd.open_workbook(str(ruta))
+        ws = wb.sheet_by_name("BOGOTA")
+        col_map = {ws.cell_value(0, c): c for c in range(ws.ncols)}
+
+        self.assertEqual(ws.cell_value(1, col_map["documento_referencia"]), "FC001")
+        self.assertEqual(ws.cell_value(1, col_map["clasificador2"]), "FC001")
+        ruta.unlink(missing_ok=True)
+
 
 @override_settings(MEDIA_ROOT="/tmp/test_media_gen2")
 class GenerarRegeneracionTest(TestCase):
