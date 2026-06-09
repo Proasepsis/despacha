@@ -308,6 +308,9 @@ document.addEventListener('DOMContentLoaded', function() {
             var docId = document.activeElement.dataset.parentDocId;
             var header = document.querySelector('[data-doc-header][data-doc-id="' + docId + '"]');
             if (header) {
+                document.querySelectorAll('[data-doc-header]').forEach(function(h) {
+                    h.setAttribute('tabindex', '-1');
+                });
                 header.setAttribute('tabindex', '0');
                 header.focus();
             }
