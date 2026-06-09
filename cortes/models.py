@@ -146,3 +146,20 @@ class Auditoria(models.Model):
 
     def __str__(self):
         return f"[{self.fecha:%Y-%m-%d %H:%M}] {self.usuario} — {self.tipo_evento} {self.objeto_tipo}#{self.objeto_id}"
+
+
+class PresenciaCorte(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="presencias_corte",
+    )
+    corte = models.ForeignKey(
+        Corte,
+        on_delete=models.CASCADE,
+        related_name="presencias",
+    )
+    visto_en = models.DateTimeField()
+
+    class Meta:
+        unique_together = [("user", "corte")]
