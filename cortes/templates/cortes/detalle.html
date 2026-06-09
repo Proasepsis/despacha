@@ -23,14 +23,7 @@
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem;">
         <a href="{% url 'lista_cortes' %}" class="btn btn-ghost" data-kb="back">← Volver</a>
-        {% if bloqueo_info %}
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">
-                {% if es_editor %}● Editando tú{% else %}● Editando: {{ bloqueo_info.usuario }}{% endif %}
-            </span>
-            {% if es_admin and not es_editor %}
-            <button onclick="forzarLiberacion()" class="btn btn-danger" style="font-size:11px;padding:.2rem .6rem;">Liberar bloqueo</button>
-            {% endif %}
-        {% endif %}
+        <div id="presencia-chips" style="display:flex;align-items:center;gap:.3rem;min-height:26px;"></div>
         <span id="ultima-edicion" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);"></span>
     </div>
 </div>
@@ -210,18 +203,6 @@ function toggleLineas(docId) {
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-function forzarLiberacion() {
-    if (!confirm('¿Forzar la liberación del bloqueo? Quedará auditado.')) return;
-    fetch('/cortes/' + CORTE_ID + '/forzar-liberacion/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
-        body: '{}'
-    }).then(function(r) {
-        if (r.ok) location.reload();
-        else alert('Error al forzar liberación');
-    });
-}
-
 function generarArchivo(e) {
     e.preventDefault();
     var form = document.getElementById('form-generar');
@@ -303,6 +284,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 header.setAttribute('tabindex', '0');
                 header.focus();
             }
+        }
+    });
+});
+</script>
+
+<script>
+var PRESENCE_COLORS = [
+    '#0284c7','#059669','#b45309','#7c3aed','#db2777','#0891b2'
+];
+function presenceColor(username) {
+    var h = 0;
+    for (var i = 0; i < username.length; i++) {
+        h = (h * 31 + username.charCodeAt(i)) & 0xffff;
+    }
+    return PRESENCE_COLORS[h % PRESENCE_COLORS.length];
+}
+
+function pingPresencia() {
+    var base = '/cortes/' + CORTE_ID + '/presencia/';
+    fetch(base, { method: 'POST', headers: { 'X-CSRFToken': getCSRF() } });
+    fetch(base).then(function(r) { return r.json(); }).then(function(data) {
+        var wrap = document.getElementById('presencia-chips');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        data.usuarios.forEach(function(u) {
+            var chip = document.createElement('span');
+            chip.title = u.username;
+            chip.textContent = u.iniciales;
+            chip.style.cssText =
+                'display:inline-flex;align-items:center;justify-content:center;' +
+                'width:26px;height:26px;border-radius:50%;font-size:10px;font-weight:600;' +
+                'font-family:var(--font-mono);color:#fff;cursor:default;' +
+                'background:' + presenceColor(u.username) + ';' +
+                (u.soy_yo ? 'outline:2px solid var(--accent);outline-offset:1px;' : '');
+            wrap.appendChild(chip);
+        });
+    }).catch(function() {});
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    pingPresencia();
+    var presenciaInterval = setInterval(pingPresencia, 10000);
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(presenciaInterval);
+        } else {
+            presenciaInterval = setInterval(pingPresencia, 10000);
+            pingPresencia();
         }
     });
 });

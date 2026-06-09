@@ -46,4 +46,32 @@
         </div>
     </form>
 </div>
+
+<div id="upload-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(8,11,18,.72);z-index:9999;
+            align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
+    <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);letter-spacing:1px;">
+        Procesando archivo…
+    </div>
+    <div style="width:280px;height:3px;background:var(--surface-raised);border-radius:2px;overflow:hidden;">
+        <div style="height:100%;width:30%;background:var(--accent);border-radius:2px;
+                    animation:upload-slide 1.4s ease-in-out infinite;"></div>
+    </div>
+</div>
+
+<style>
+@keyframes upload-slide {
+    0%   { margin-left:-30%; width:30%; }
+    50%  { margin-left:40%; width:40%; }
+    100% { margin-left:110%; width:30%; }
+}
+</style>
+
+<script>
+document.querySelector('form').addEventListener('submit', function() {
+    document.querySelector('[type=submit]').disabled = true;
+    var overlay = document.getElementById('upload-overlay');
+    overlay.style.display = 'flex';
+});
+</script>
 {% endblock %}
