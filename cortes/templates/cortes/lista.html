@@ -4,40 +4,73 @@
 
 {% block content %}
 <div class="toolbar">
-    <h2 style="margin:0;flex:1;">Cortes</h2>
-    <a href="{% url 'cargar_corte' %}" class="btn btn-primary" data-kb="nuevo">+ Cargar nuevo</a>
+    <h2 style="flex:1;">Cortes de facturación</h2>
+    {% if perms.cortes.add_corte %}
+    <a href="{% url 'cargar_corte' %}" class="btn btn-primary" data-kb="nuevo">+ Cargar archivo</a>
+    {% endif %}
 </div>
 
-<table>
-    <thead>
-        <tr>
-            <th>Fecha</th>
-            <th>Corte</th>
-            <th>Estado</th>
-            <th>Versión</th>
-            <th>Cargado por</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for corte in cortes %}
-        <tr>
-            <td>{{ corte.fecha|date:"d/m/Y" }}</td>
-            <td><a href="{% url 'detalle_corte' corte.pk %}">Corte {{ corte.numero_corte }}</a></td>
-            <td><span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span></td>
-            <td>v{{ corte.version_actual }}</td>
-            <td>{{ corte.usuario_carga.username }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">No hay cortes aún. Carga tu primer archivo.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Corte</th>
+                <th>Estado</th>
+                <th>Facturas</th>
+                <th>Versión</th>
+                <th>Cargado por</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for corte in cortes %}
+            <tr data-corte-url="{% url 'detalle_corte' corte.pk %}" style="cursor:pointer;">
+                <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);white-space:nowrap;">
+                    {{ corte.fecha|date:"d/m/Y" }}
+                </td>
+                <td style="font-weight:500;">Corte {{ corte.numero_corte }}</td>
+                <td><span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span></td>
+                <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);text-align:center;">
+                    {{ corte.documentos_count }}
+                </td>
+                <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);">
+                    v{{ corte.version_actual }}
+                </td>
+                <td style="color:var(--text-soft);font-size:13px;">{{ corte.usuario_carga.username }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:3rem;font-size:13px;">
+                    No hay cortes en los últimos 30 días.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
 {% if is_paginated %}
 <div class="pagination">
-    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">&laquo;</a>{% endif %}
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+    {% endif %}
     <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">&raquo;</a>{% endif %}
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+    {% endif %}
 </div>
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var rows = document.querySelectorAll('tbody tr[data-corte-url]');
+    rows.forEach(function(row) {
+        row.addEventListener('click', function() {
+            location.href = row.dataset.corteUrl;
+        });
+    });
+    initKeyNav(rows, {
+        onActivate: function(row) { location.href = row.dataset.corteUrl; }
+    });
+});
+</script>
 {% endblock %}
