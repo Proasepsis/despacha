@@ -27,15 +27,11 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - media_data:/app/media
       - /opt/despacha/secrets:/secrets:ro
       - /opt/despacha/logs:/app/logs
     restart: unless-stopped
     networks:
       - despacha_net
-
-volumes:
-  media_data:
 
 networks:
   despacha_net:

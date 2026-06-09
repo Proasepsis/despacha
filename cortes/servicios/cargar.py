@@ -1,11 +1,11 @@
 import hashlib
+import tempfile
 from datetime import date
 from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
-from django.conf import settings
 
 from cortes.models import Corte
 from cortes.servicios.procesar import procesar_documentos_internos, ResultadoProcesamiento
@@ -76,12 +76,6 @@ def cargar_archivo(
     if existente:
         raise ErrorDuplicado(corte_existente_id=existente.pk)
 
-    uploads_dir = Path(settings.MEDIA_ROOT) / "uploads"
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    ruta_guardado = uploads_dir / f"{hash_sha256}_{archivo.name}"
-    with open(ruta_guardado, "wb") as f:
-        f.write(contenido)
-
     fecha_corte = fecha or date.today()
 
     if not es_adicional:
@@ -101,14 +95,23 @@ def cargar_archivo(
         estado="cargado",
     )
 
+    suffix = Path(archivo.name).suffix or ".xlsx"
+    fd, tmp_path_str = tempfile.mkstemp(suffix=suffix)
+    tmp_path = Path(tmp_path_str)
     try:
-        adaptador = obtener_adaptador(formato_origen)
-        adaptador.validar(ruta_guardado)
-    except Exception as e:
-        corte.delete()
-        raise ErrorValidacionAdaptador(str(e)) from e
+        with open(fd, "wb") as f:
+            f.write(contenido)
 
-    documentos = adaptador.parse(ruta_guardado)
+        try:
+            adaptador = obtener_adaptador(formato_origen)
+            adaptador.validar(tmp_path)
+        except Exception as e:
+            corte.delete()
+            raise ErrorValidacionAdaptador(str(e)) from e
+
+        documentos = adaptador.parse(tmp_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
     existente_combinacion = Corte.objects.filter(
         fecha=corte.fecha,
