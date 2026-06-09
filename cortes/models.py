@@ -13,7 +13,6 @@ class Corte(models.Model):
     CORTE_CHOICES = [
         (1, "Corte 1"),
         (2, "Corte 2"),
-        (3, "Corte 3 (adicional)"),
     ]
 
     archivo = models.CharField(max_length=255)
@@ -22,6 +21,7 @@ class Corte(models.Model):
     usuario_carga = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     fecha = models.DateField(db_index=True)
     numero_corte = models.PositiveSmallIntegerField(choices=CORTE_CHOICES)
+    adicional_letra = models.CharField(max_length=1, blank=True, default="")
     estado = models.CharField(
         max_length=20, choices=ESTADO_CHOICES, default="cargado", db_index=True
     )
@@ -38,10 +38,23 @@ class Corte(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-fecha", "-numero_corte"]
+        ordering = ["-fecha", "-numero_corte", "adicional_letra"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fecha", "numero_corte", "adicional_letra"],
+                name="uq_corte_fecha_numero_letra",
+            )
+        ]
+
+    @property
+    def display_corte(self):
+        base = f"Corte {self.numero_corte}"
+        if self.adicional_letra:
+            base += self.adicional_letra
+        return base
 
     def __str__(self):
-        return f"Corte {self.numero_corte} {self.fecha:%d/%m/%Y} (v{self.version_actual})"
+        return f"{self.display_corte} {self.fecha:%d/%m/%Y} (v{self.version_actual})"
 
 
 class CorteVersion(models.Model):

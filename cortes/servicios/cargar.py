@@ -37,6 +37,7 @@ def cargar_archivo(
     usuario: User,
     formato_origen: str,
     numero_corte: int,
+    adicional_letra: str = "",
     fecha: date | None = None,
 ) -> tuple[Corte, ResultadoProcesamiento]:
     contenido = archivo.read()
@@ -61,6 +62,7 @@ def cargar_archivo(
         usuario_carga=usuario,
         fecha=fecha or date.today(),
         numero_corte=numero_corte,
+        adicional_letra=adicional_letra.upper() if adicional_letra else "",
         estado="cargado",
     )
 
@@ -76,11 +78,12 @@ def cargar_archivo(
     existente_combinacion = Corte.objects.filter(
         fecha=corte.fecha,
         numero_corte=numero_corte,
+        adicional_letra=corte.adicional_letra,
     ).first()
     if existente_combinacion and existente_combinacion.pk != corte.pk:
         corte.delete()
         raise ErrorCombinacionFechaCorte(
-            f"Ya existe corte {numero_corte} para el {corte.fecha}"
+            f"Ya existe {corte.display_corte} para el {corte.fecha}"
         )
 
     try:

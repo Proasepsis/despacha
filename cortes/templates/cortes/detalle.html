@@ -1,12 +1,12 @@
 {% extends "cortes/base.html" %}
 
-{% block title %}Corte {{ corte.numero_corte }} · {{ corte.fecha|date:"d M Y" }} — Despacha{% endblock %}
+{% block title %}{{ corte.display_corte }} · {{ corte.fecha|date:"d M Y" }} — Despacha{% endblock %}
 
 {% block content %}
 
 <div class="toolbar">
     <div style="flex:1;">
-        <h2>Corte {{ corte.numero_corte }}
+        <h2>{{ corte.display_corte }}
             <span style="font-family:var(--font-mono);font-size:13px;font-weight:400;color:var(--text-soft);margin-left:.5rem;">{{ corte.fecha|date:"d M Y" }}</span>
         </h2>
         <div style="margin-top:.35rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">

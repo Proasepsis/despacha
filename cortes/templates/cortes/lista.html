@@ -28,7 +28,7 @@
                 <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);white-space:nowrap;">
                     {{ corte.fecha|date:"d/m/Y" }}
                 </td>
-                <td style="font-weight:500;">Corte {{ corte.numero_corte }}</td>
+                <td style="font-weight:500;">{{ corte.display_corte }}</td>
                 <td><span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span></td>
                 <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);text-align:center;">
                     {{ corte.documentos_count }}
