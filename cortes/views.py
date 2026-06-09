@@ -14,7 +14,6 @@ from django.views.generic import ListView, DetailView
 from datetime import timedelta
 
 from django.db.models import Count
-from django.utils import timezone
 
 from cortes.models import Corte, Documento, Linea
 from cortes.forms import CargarCorteForm
