@@ -1,0 +1,263 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ title }} | Administración Despacha{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+    <a href="{% url 'admin:index' %}">
+        Administración&nbsp;<strong>Despacha</strong>
+    </a>
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Figtree:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ══ Variables del admin → paleta Despacha ══════════════════ */
+html {
+    --primary:                  #0284c7;
+    --secondary:                #0f172a;
+    --accent:                   #22d3ee;
+    --primary-fg:               #ffffff;
+
+    --body-fg:                  #0f172a;
+    --body-bg:                  #f1f5fb;
+    --body-quiet-color:         #475569;
+    --body-loud-color:          #0f172a;
+
+    --header-color:             #c8d6ef;
+    --header-branding-color:    #22d3ee;
+    --header-bg:                #0f172a;
+    --header-link-color:        #94a3b8;
+
+    --breadcrumbs-fg:           #94a3b8;
+    --breadcrumbs-link-fg:      #c8d6ef;
+    --breadcrumbs-bg:           #172033;
+
+    --link-fg:                  #0284c7;
+    --link-hover-color:         #0369a1;
+    --link-selected-fg:         #0284c7;
+
+    --hairline-color:           #dde3ee;
+    --border-color:             #c8d2e4;
+    --darkened-bg:              #f7f9fc;
+    --selected-bg:              #eef2f8;
+    --selected-row:             #f0f7ff;
+
+    --button-fg:                #ffffff;
+    --button-bg:                #0284c7;
+    --button-hover-bg:          #0369a1;
+    --default-button-bg:        #0f172a;
+    --default-button-hover-bg:  #1e2d45;
+    --close-button-bg:          #475569;
+    --close-button-hover-bg:    #1e293b;
+    --delete-button-bg:         #dc2626;
+    --delete-button-hover-bg:   #b91c1c;
+    --object-tools-bg:          #1e293b;
+    --object-tools-hover-bg:    #0f172a;
+}
+
+/* ══ Tipografía ════════════════════════════════════════════ */
+body, input, textarea, select, button, .form-row label {
+    font-family: 'Figtree', system-ui, sans-serif;
+}
+
+#branding h1, #branding h1 a:link, #branding h1 a:visited {
+    font-family: 'Syne', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -.3px;
+    color: #c8d6ef;
+}
+
+#branding h1 strong {
+    color: #22d3ee;
+}
+
+code, pre, tt, .monospace {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ══ Header ════════════════════════════════════════════════ */
+#header {
+    background: #0f172a;
+    border-bottom: 1px solid #1e2d45;
+    padding: 12px 20px;
+}
+
+#user-tools {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #64748b;
+}
+
+#user-tools a {
+    color: #94a3b8;
+}
+
+#user-tools a:hover {
+    color: #22d3ee;
+}
+
+/* ══ Breadcrumbs ═══════════════════════════════════════════ */
+div.breadcrumbs {
+    background: #172033;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .3px;
+    border-bottom: 1px solid #1e2d45;
+    padding: 8px 20px;
+}
+
+div.breadcrumbs a {
+    color: #94a3b8;
+}
+
+div.breadcrumbs a:hover {
+    color: #22d3ee;
+}
+
+/* ══ Contenido principal ════════════════════════════════════ */
+#content {
+    background: #f1f5fb;
+}
+
+#content h1 {
+    font-family: 'Syne', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: #0f172a;
+    letter-spacing: -.3px;
+}
+
+/* ══ Módulos / tarjetas ════════════════════════════════════ */
+.module {
+    border: 1px solid #dde3ee;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.module h2, .module caption, .inline-group h2 {
+    background: #0f172a;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 12px;
+}
+
+/* ══ Tablas ════════════════════════════════════════════════ */
+#result_list thead th {
+    background: #f7f9fc;
+    color: #475569;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #c8d2e4;
+}
+
+#result_list tr:hover td {
+    background: #eef2f8;
+}
+
+/* ══ Botones ════════════════════════════════════════════════ */
+.button, input[type=submit], input[type=button],
+.submit-row input, a.button {
+    border-radius: 6px;
+    font-family: 'Figtree', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .2px;
+    transition: background .14s, box-shadow .14s;
+}
+
+.button:hover, input[type=submit]:hover {
+    box-shadow: 0 0 0 3px rgba(2,132,199,.15);
+}
+
+/* ══ Sidebar de navegación ═════════════════════════════════ */
+#nav-sidebar .module {
+    background: #f7f9fc;
+    border-color: #dde3ee;
+}
+
+#nav-sidebar .module h2 {
+    background: #0f172a;
+}
+
+/* ══ Formularios ════════════════════════════════════════════ */
+.form-row {
+    border-bottom: 1px solid #eef2f8;
+}
+
+input[type=text], input[type=password], input[type=email],
+input[type=url], input[type=number], textarea, select {
+    border: 1px solid #c8d2e4;
+    border-radius: 5px;
+    font-family: 'Figtree', system-ui, sans-serif;
+    font-size: 13px;
+    color: #0f172a;
+    background: #ffffff;
+    transition: border-color .14s, box-shadow .14s;
+}
+
+input[type=text]:focus, input[type=password]:focus,
+input[type=email]:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2,132,199,.12);
+}
+
+/* ══ Dashboard index ════════════════════════════════════════ */
+#content-main .module caption {
+    background: #0f172a;
+}
+
+#content-main .module table td a {
+    color: #0284c7;
+    font-weight: 500;
+}
+
+#content-main .module table td a:hover {
+    color: #0369a1;
+}
+
+/* ══ Mensajes ═══════════════════════════════════════════════ */
+li.success { background: rgba(5,150,105,.08); border-left: 3px solid #059669; color: #065f46; }
+li.warning { background: rgba(180,83,9,.07);  border-left: 3px solid #b45309; color: #78350f; }
+li.error   { background: rgba(220,38,38,.07); border-left: 3px solid #dc2626; color: #991b1b; }
+
+/* ══ Paginator ═══════════════════════════════════════════════ */
+.paginator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.paginator a {
+    color: #0284c7;
+    border: 1px solid #c8d2e4;
+    border-radius: 4px;
+    padding: 2px 7px;
+}
+
+.paginator a:hover {
+    background: #eef2f8;
+}
+
+.paginator .this-page {
+    background: #0284c7;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 7px;
+}
+</style>
+{% endblock %}
