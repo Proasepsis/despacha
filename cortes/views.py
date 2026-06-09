@@ -190,6 +190,8 @@ class EditarCorteView(LoginRequiredMixin, View):
                         return HttpResponseBadRequest("No se puede editar sufijo sin novedad activa")
                     if campo == "subsanar_novedad":
                         valor = valor == "true"
+                    if campo == "factura_sufijo" and isinstance(valor, str):
+                        valor = valor.upper()
                     setattr(doc, campo, valor)
                     if campo == "subsanar_novedad" and not valor:
                         doc.factura_sufijo = ""
