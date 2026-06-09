@@ -31,16 +31,31 @@ class ErrorCombinacionFechaCorte(ErrorCarga):
     pass
 
 
+class ErrorSugerirAdicional(ErrorCarga):
+    def __init__(self, numero_corte: int, fecha: date):
+        self.numero_corte = numero_corte
+        self.fecha = fecha
+        super().__init__(
+            f"Ya existe Corte {numero_corte} para el {fecha:%d/%m/%Y}. "
+            "Si es un cargue adicional, marca la casilla «Es adicional» e intenta de nuevo."
+        )
+
+
+_LETRAS_ADICIONALES = "ABCDE"
+
+
 def _siguiente_letra_adicional(fecha_corte: date, numero_corte: int) -> str:
     usadas = set(
         Corte.objects.filter(fecha=fecha_corte, numero_corte=numero_corte)
         .exclude(adicional_letra="")
         .values_list("adicional_letra", flat=True)
     )
-    for letra in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+    for letra in _LETRAS_ADICIONALES:
         if letra not in usadas:
             return letra
-    raise ErrorCarga("Se alcanzó el límite de cortes adicionales (Z).")
+    raise ErrorCarga(
+        f"Se alcanzó el límite de {len(_LETRAS_ADICIONALES)} cortes adicionales para este corte."
+    )
 
 
 @transaction.atomic
@@ -68,6 +83,11 @@ def cargar_archivo(
         f.write(contenido)
 
     fecha_corte = fecha or date.today()
+
+    if not es_adicional:
+        if Corte.objects.filter(fecha=fecha_corte, numero_corte=numero_corte, adicional_letra="").exists():
+            raise ErrorSugerirAdicional(numero_corte, fecha_corte)
+
     adicional_letra = _siguiente_letra_adicional(fecha_corte, numero_corte) if es_adicional else ""
 
     corte = Corte.objects.create(

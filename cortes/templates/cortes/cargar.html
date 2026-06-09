@@ -15,7 +15,11 @@
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        {% if form.non_field_errors %}
+        {% if sugerir_adicional %}
+        <div class="msg msg-warning" style="margin-bottom:1rem;">
+            <span>{{ msg_sugerencia }}</span>
+        </div>
+        {% elif form.non_field_errors %}
         <div class="msg msg-error">{{ form.non_field_errors }}</div>
         {% endif %}
 
@@ -42,7 +46,7 @@
 
         <div class="form-group" style="display:flex;align-items:center;gap:.75rem;">
             <label style="display:flex;align-items:center;gap:.4rem;font-size:13px;cursor:pointer;margin:0;">
-                <input type="checkbox" name="es_adicional" id="{{ form.es_adicional.id_for_label }}" style="width:auto;">
+                <input type="checkbox" name="es_adicional" id="{{ form.es_adicional.id_for_label }}" style="width:auto;"{% if sugerir_adicional %} checked{% endif %}>
                 Es adicional
             </label>
         </div>

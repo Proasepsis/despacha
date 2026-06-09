@@ -23,6 +23,7 @@ from cortes.servicios.cargar import (
     ErrorDuplicado,
     ErrorValidacionAdaptador,
     ErrorCombinacionFechaCorte,
+    ErrorSugerirAdicional,
 )
 from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
@@ -94,6 +95,13 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
             return render(request, self.template_name, {
                 "form": form,
                 "corte_sugerido": sugerir_corte(),
+            })
+        except ErrorSugerirAdicional as e:
+            return render(request, self.template_name, {
+                "form": form,
+                "corte_sugerido": sugerir_corte(),
+                "sugerir_adicional": True,
+                "msg_sugerencia": str(e),
             })
         except ErrorCombinacionFechaCorte as e:
             form.add_error(None, str(e))
