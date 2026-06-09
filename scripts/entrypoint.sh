@@ -11,24 +11,17 @@ if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; t
     echo "==> Verificando superusuario..."
     python manage.py shell -c "
 from django.contrib.auth.models import User, Group
-u, created = User.objects.get_or_create(
-    username='${DJANGO_SUPERUSER_USERNAME}',
-    defaults={
-        'email': '${DJANGO_SUPERUSER_EMAIL:-admin@local}',
-        'is_superuser': True,
-        'is_staff': True,
-    }
-)
-if created:
-    u.set_password('${DJANGO_SUPERUSER_PASSWORD}')
-    u.save()
-    print('Superusuario creado.')
+if not User.objects.filter(username='${DJANGO_SUPERUSER_USERNAME}').exists():
+    u = User.objects.create_superuser(
+        username='${DJANGO_SUPERUSER_USERNAME}',
+        email='${DJANGO_SUPERUSER_EMAIL:-admin@local}',
+        password='${DJANGO_SUPERUSER_PASSWORD}',
+    )
+    grupo_admin, _ = Group.objects.get_or_create(name='admin')
+    u.groups.add(grupo_admin)
+    print('Superusuario creado y asignado al grupo admin.')
 else:
-    print('Superusuario ya existe.')
-
-grupo_admin, _ = Group.objects.get_or_create(name='admin')
-u.groups.add(grupo_admin)
-print('Superusuario asignado al grupo admin.')
+    print('Superusuario ya existe, omitiendo.')
 "
 fi
 
