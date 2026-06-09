@@ -12,17 +12,16 @@
 
 {% if dias %}
 <div class="cortes-header">
-    <div class="ch-left">
-        <span>Corte</span>
-        <span>Estado</span>
-    </div>
-    <div class="ch-right">
+    <span>Corte</span>
+    <span>Tipo comprobante</span>
+    <span>Estado</span>
+    <span class="ch-meta">
         <span>Facturas</span>
         <span class="meta-dot">·</span>
         <span>Versión</span>
         <span class="meta-dot">·</span>
         <span>Usuario</span>
-    </div>
+    </span>
 </div>
 
 <div class="cortes-feed">
@@ -36,12 +35,11 @@
             {% for corte in grupo %}
             <a href="{% url 'detalle_corte' corte.pk %}"
                class="corte-row{% if corte.adicional_letra %} row-adicional{% else %} row-base{% endif %}">
-                <div class="row-left">
-                    <span class="row-name">{{ corte.display_corte }}</span>
-                    <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
-                </div>
+                <span class="row-name">{{ corte.display_corte }}</span>
+                <span class="row-tipo">{{ corte.tipo_comprobante|default:"—" }}</span>
+                <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
                 <div class="row-meta">
-                    <span>{{ corte.documentos_count }} facturas</span>
+                    <span>{{ corte.documentos_count }}</span>
                     <span class="meta-dot">·</span>
                     <span>v{{ corte.version_actual }}</span>
                     <span class="meta-dot">·</span>
@@ -76,6 +74,34 @@
 {% endif %}
 
 <style>
+/* ── grilla compartida por encabezado y filas ── */
+.cortes-header,
+.corte-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 118px 160px;
+    align-items: center;
+    gap: 0 .75rem;
+    padding: .5rem 1rem;
+}
+
+/* ── encabezado ── */
+.cortes-header {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: .25rem;
+}
+.ch-meta {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    justify-content: flex-end;
+}
+
+/* ── secciones por fecha ── */
 .cortes-feed { display: flex; flex-direction: column; gap: 1.5rem; }
 
 .day-divider {
@@ -100,6 +126,7 @@
     white-space: nowrap;
 }
 
+/* ── tabla de filas ── */
 .day-table {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -108,10 +135,6 @@
 }
 
 .corte-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: .55rem 1rem;
     text-decoration: none;
     color: var(--text);
     border-bottom: 1px solid var(--border);
@@ -124,18 +147,22 @@
     box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.row-base .row-name  { font-weight: 600; font-size: 13px; }
+.row-base .row-name     { font-weight: 600; font-size: 13px; }
 .row-adicional .row-name { font-weight: 400; font-size: 13px; color: var(--text-soft); }
 
-.row-left {
-    display: flex;
-    align-items: center;
-    gap: .6rem;
+.row-tipo {
+    font-size: 12px;
+    color: var(--text-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
+
 .row-meta {
     display: flex;
     align-items: center;
-    gap: .4rem;
+    justify-content: flex-end;
+    gap: .35rem;
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-muted);
@@ -145,23 +172,8 @@
 .grupo-sep {
     height: 0;
     border-bottom: 2px solid var(--border);
+    grid-column: 1 / -1;
 }
-
-.cortes-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: .25rem 1rem .4rem;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-    margin-bottom: .1rem;
-}
-.ch-left  { display: flex; align-items: center; gap: .6rem; }
-.ch-right { display: flex; align-items: center; gap: .4rem; }
 </style>
 
 <script>

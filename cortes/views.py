@@ -96,6 +96,7 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                 formato_origen=form.cleaned_data["formato_origen"],
                 numero_corte=int(form.cleaned_data["numero_corte"]),
                 es_adicional=form.cleaned_data.get("es_adicional", False),
+                tipo_comprobante=form.cleaned_data.get("tipo_comprobante", ""),
             )
         except ErrorDuplicado as e:
             form.add_error(None, str(e))

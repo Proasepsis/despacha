@@ -13,7 +13,7 @@
         CORTE SUGERIDO SEGÚN HORA &nbsp;·&nbsp; <span style="color:var(--accent);">{{ corte_sugerido }}</span>
     </p>
 
-    <form method="post" enctype="multipart/form-data">
+    <form id="upload-form" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% if sugerir_adicional %}
         <div class="msg msg-warning" style="margin-bottom:1rem;">
@@ -51,6 +51,12 @@
             </label>
         </div>
 
+        <div class="form-group">
+            <label for="{{ form.tipo_comprobante.id_for_label }}">{{ form.tipo_comprobante.label }}</label>
+            {{ form.tipo_comprobante }}
+            <p style="margin-top:.3rem;font-size:11px;color:var(--text-muted);">Solo informativo — describe qué tipo de documentos contiene este corte.</p>
+        </div>
+
         <div style="display:flex;gap:.75rem;align-items:center;margin-top:1.5rem;">
             <button type="submit" class="btn btn-primary" accesskey="s">Cargar y procesar</button>
             <a href="{% url 'lista_cortes' %}" class="btn btn-ghost">Cancelar</a>
@@ -79,10 +85,9 @@
 </style>
 
 <script>
-document.querySelector('form').addEventListener('submit', function() {
-    document.querySelector('[type=submit]').disabled = true;
-    var overlay = document.getElementById('upload-overlay');
-    overlay.style.display = 'flex';
+document.getElementById('upload-form').addEventListener('submit', function() {
+    document.querySelector('#upload-form [type=submit]').disabled = true;
+    document.getElementById('upload-overlay').style.display = 'flex';
 });
 </script>
 {% endblock %}

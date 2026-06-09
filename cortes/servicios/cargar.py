@@ -65,6 +65,7 @@ def cargar_archivo(
     formato_origen: str,
     numero_corte: int,
     es_adicional: bool = False,
+    tipo_comprobante: str = "",
     fecha: date | None = None,
 ) -> tuple[Corte, ResultadoProcesamiento]:
     contenido = archivo.read()
@@ -94,6 +95,7 @@ def cargar_archivo(
                 fecha=fecha_corte,
                 numero_corte=numero_corte,
                 adicional_letra=adicional_letra,
+                tipo_comprobante=tipo_comprobante.strip(),
                 estado="cargado",
             )
     except IntegrityError:
