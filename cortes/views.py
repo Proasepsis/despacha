@@ -147,6 +147,8 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                 "nit": doc.nit,
                 "clasificador1": doc.clasificador1,
                 "observaciones": doc.observaciones,
+                "subsanar_novedad": doc.subsanar_novedad,
+                "factura_sufijo": doc.factura_sufijo,
                 "lineas": lineas_data,
             })
 

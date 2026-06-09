@@ -73,6 +73,25 @@
                     {% endfor %}
                 </select>
             </label>
+            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;">
+                <input type="checkbox" id="nov-{{ doc.id }}"
+                       data-parent-doc-id="{{ doc.id }}"
+                       {% if doc.subsanar_novedad %}checked{% endif %}
+                       onchange="toggleNovedad({{ doc.id }}, this.checked)"
+                       style="width:auto;">
+                Subsanar novedad
+            </label>
+            <div id="sufijo-wrap-{{ doc.id }}"
+                 style="display:{% if doc.subsanar_novedad %}flex{% else %}none{% endif %};align-items:center;gap:.3rem;">
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-soft);">{{ doc.factura }}</span>
+                <input type="text" maxlength="10"
+                       id="sufijo-{{ doc.id }}"
+                       data-parent-doc-id="{{ doc.id }}"
+                       value="{{ doc.factura_sufijo }}"
+                       placeholder="A"
+                       onchange="autosave('documento', {{ doc.id }}, 'factura_sufijo', this.value)"
+                       style="width:60px;font-size:12px;font-family:var(--font-mono);padding:.2rem .4rem;background:var(--surface-raised);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);">
+            </div>
             <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="font-size:11px;padding:.2rem .6rem;">Ver líneas</button>
             {% else %}
             <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">EMB {{ doc.clasificador1 }}</span>
@@ -255,6 +274,16 @@ function generarArchivo(e) {
 </script>
 {% endverbatim %}
 <script>
+function toggleNovedad(docId, checked) {
+    autosave('documento', docId, 'subsanar_novedad', checked ? 'true' : 'false');
+    var wrap = document.getElementById('sufijo-wrap-' + docId);
+    if (wrap) wrap.style.display = checked ? 'flex' : 'none';
+    if (!checked) {
+        var inp = document.getElementById('sufijo-' + docId);
+        if (inp) { inp.value = ''; autosave('documento', docId, 'factura_sufijo', ''); }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     var headers = document.querySelectorAll('[data-doc-header]');
     initKeyNav(headers, {
