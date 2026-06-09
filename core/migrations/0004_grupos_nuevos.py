@@ -1,7 +1,19 @@
 from django.db import migrations
+from django.contrib.contenttypes.management import create_contenttypes
 
 
 def crear_grupos(apps, schema_editor):
+    # Ensure content types and permissions exist before querying them.
+    # Django creates Permission objects via post_migrate, which fires after all
+    # migrations complete — so RunPython migrations must trigger this manually.
+    for app_config in apps.get_app_configs():
+        if app_config.label in ("cortes", "core", "productos"):
+            create_contenttypes(app_config, verbosity=0)
+    from django.contrib.auth.management import create_permissions
+    for app_config in apps.get_app_configs():
+        if app_config.label in ("cortes", "core", "productos"):
+            create_permissions(app_config, verbosity=0)
+
     Group = apps.get_model("auth", "Group")
     Permission = apps.get_model("auth", "Permission")
 
