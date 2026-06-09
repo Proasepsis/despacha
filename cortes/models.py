@@ -74,7 +74,7 @@ class Documento(models.Model):
         on_delete=models.PROTECT,
     )
     clasificador1 = models.CharField(max_length=20, default="EMBALAR")
-    observaciones = models.CharField(max_length=20, default="NO PRIORIDAD")
+    observaciones = models.CharField(max_length=20, default="PRIORIDAD")
     subsanar_novedad = models.BooleanField(default=False)
     factura_sufijo   = models.CharField(max_length=10, blank=True, default="")
     creado_por_split_de = models.ForeignKey(
