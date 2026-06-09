@@ -38,7 +38,7 @@ class Corte(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-fecha", "-numero_corte", "adicional_letra"]
+        ordering = ["-fecha", "numero_corte", "adicional_letra"]
         constraints = [
             models.UniqueConstraint(
                 fields=["fecha", "numero_corte", "adicional_letra"],

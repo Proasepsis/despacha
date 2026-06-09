@@ -57,6 +57,18 @@ class ListaCortesView(LoginRequiredMixin, ListView):
             documentos_count=Count("documentos"),
         )
 
+    def get_context_data(self, **kwargs):
+        from itertools import groupby
+        ctx = super().get_context_data(**kwargs)
+        dias = []
+        for fecha, fecha_iter in groupby(ctx["cortes"], key=lambda c: c.fecha):
+            grupos = []
+            for numero, corte_iter in groupby(list(fecha_iter), key=lambda c: c.numero_corte):
+                grupos.append(list(corte_iter))
+            dias.append({"fecha": fecha, "grupos": grupos})
+        ctx["dias"] = dias
+        return ctx
+
 
 class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
     template_name = "cortes/cargar.html"

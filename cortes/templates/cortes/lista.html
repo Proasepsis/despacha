@@ -10,23 +10,23 @@
     {% endif %}
 </div>
 
-{% regroup cortes by fecha as dias %}
-
-{% if cortes %}
+{% if dias %}
 <div class="cortes-feed">
 {% for dia in dias %}
-    <div class="day-group">
+    <div class="day-section">
         <div class="day-divider">
-            <span class="day-label">{{ dia.grouper|date:"d/m/Y" }}</span>
+            <span class="day-label">{{ dia.fecha|date:"d/m/Y" }}</span>
         </div>
-        <div class="day-cards">
-        {% for corte in dia.list %}
-            <a href="{% url 'detalle_corte' corte.pk %}" class="corte-card">
-                <div class="corte-card-main">
-                    <span class="corte-title">{{ corte.display_corte }}</span>
+        <div class="day-table">
+            {% for grupo in dia.grupos %}
+            {% for corte in grupo %}
+            <a href="{% url 'detalle_corte' corte.pk %}"
+               class="corte-row{% if corte.adicional_letra %} row-adicional{% else %} row-base{% endif %}">
+                <div class="row-left">
+                    <span class="row-name">{{ corte.display_corte }}</span>
                     <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
                 </div>
-                <div class="corte-card-meta">
+                <div class="row-meta">
                     <span>{{ corte.documentos_count }} facturas</span>
                     <span class="meta-dot">·</span>
                     <span>v{{ corte.version_actual }}</span>
@@ -34,7 +34,11 @@
                     <span>{{ corte.usuario_carga.username }}</span>
                 </div>
             </a>
-        {% endfor %}
+            {% endfor %}
+            {% if not forloop.last %}
+            <div class="grupo-sep"></div>
+            {% endif %}
+            {% endfor %}
         </div>
     </div>
 {% endfor %}
@@ -82,46 +86,39 @@
     white-space: nowrap;
 }
 
-.day-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.day-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
 }
 
-.corte-card {
+.corte-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: .6rem 1rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 7px;
+    padding: .55rem 1rem;
     text-decoration: none;
     color: var(--text);
-    transition: background .12s, border-color .12s, box-shadow .12s;
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
 }
-.corte-card:hover {
-    background: var(--surface-raised);
-    border-color: var(--border-mid);
-    box-shadow: var(--shadow);
-    color: var(--text);
-}
-.corte-card:focus {
+.corte-row:last-child { border-bottom: none; }
+.corte-row:hover { background: var(--surface-raised); color: var(--text); }
+.corte-row:focus {
     outline: none;
-    box-shadow: 0 0 0 2px var(--accent);
-    border-color: var(--accent);
+    box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.corte-card-main {
+.row-base .row-name  { font-weight: 600; font-size: 13px; }
+.row-adicional .row-name { font-weight: 400; font-size: 13px; color: var(--text-soft); }
+
+.row-left {
     display: flex;
     align-items: center;
-    gap: .65rem;
+    gap: .6rem;
 }
-.corte-title {
-    font-weight: 600;
-    font-size: 13px;
-}
-.corte-card-meta {
+.row-meta {
     display: flex;
     align-items: center;
     gap: .4rem;
@@ -130,25 +127,30 @@
     color: var(--text-muted);
 }
 .meta-dot { color: var(--border-mid); }
+
+.grupo-sep {
+    height: 0;
+    border-bottom: 2px solid var(--border);
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var cards = Array.from(document.querySelectorAll('.corte-card'));
-    if (!cards.length) return;
-    cards.forEach(function(c, i) {
-        c.setAttribute('tabindex', i === 0 ? '0' : '-1');
-        c.setAttribute('data-nav-item', '');
+    var rows = Array.from(document.querySelectorAll('.corte-row'));
+    if (!rows.length) return;
+    rows.forEach(function(r, i) {
+        r.setAttribute('tabindex', i === 0 ? '0' : '-1');
+        r.setAttribute('data-nav-item', '');
     });
-    function moveTo(card) {
-        cards.forEach(function(c) { c.setAttribute('tabindex', '-1'); });
-        card.setAttribute('tabindex', '0');
-        card.focus();
+    function moveTo(r) {
+        rows.forEach(function(x) { x.setAttribute('tabindex', '-1'); });
+        r.setAttribute('tabindex', '0');
+        r.focus();
     }
-    cards.forEach(function(card, i) {
-        card.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowDown' && i < cards.length - 1) { e.preventDefault(); moveTo(cards[i + 1]); }
-            if (e.key === 'ArrowUp'   && i > 0)                { e.preventDefault(); moveTo(cards[i - 1]); }
+    rows.forEach(function(r, i) {
+        r.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown' && i < rows.length - 1) { e.preventDefault(); moveTo(rows[i + 1]); }
+            if (e.key === 'ArrowUp'   && i > 0)               { e.preventDefault(); moveTo(rows[i - 1]); }
         });
     });
 });
