@@ -194,11 +194,18 @@ class EditarCorteView(LoginRequiredMixin, View):
                 if tipo == "documento":
                     doc = get_object_or_404(Documento, pk=obj_id, corte=corte)
                     valor_anterior = getattr(doc, campo)
-                    if campo not in ("clasificador1", "observaciones"):
+                    if campo not in ("clasificador1", "observaciones", "subsanar_novedad", "factura_sufijo"):
                         return HttpResponseBadRequest(f"Campo no editable: {campo}")
+                    if campo == "factura_sufijo" and not doc.subsanar_novedad:
+                        return HttpResponseBadRequest("No se puede editar sufijo sin novedad activa")
+                    if campo == "subsanar_novedad":
+                        valor = valor == "true"
                     setattr(doc, campo, valor)
-                    doc.save(update_fields=[campo])
-
+                    if campo == "subsanar_novedad" and not valor:
+                        doc.factura_sufijo = ""
+                        doc.save(update_fields=[campo, "factura_sufijo"])
+                    else:
+                        doc.save(update_fields=[campo])
                     registrar_auditoria(
                         usuario=request.user,
                         objeto_tipo="Documento",

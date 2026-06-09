@@ -194,6 +194,60 @@ class VistaRevisionTest(TestCase):
         self.assertFalse(nuevo.subsanar_novedad)
         self.assertEqual(nuevo.factura_sufijo, "")
 
+    def test_autosave_subsanar_novedad_activar(self):
+        self._tomar_bloqueo()
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({"tipo": "documento", "id": self.doc.pk,
+                        "campo": "subsanar_novedad", "valor": "true"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.doc.refresh_from_db()
+        self.assertTrue(self.doc.subsanar_novedad)
+
+    def test_autosave_factura_sufijo_con_novedad_activa(self):
+        self._tomar_bloqueo()
+        self.doc.subsanar_novedad = True
+        self.doc.save()
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({"tipo": "documento", "id": self.doc.pk,
+                        "campo": "factura_sufijo", "valor": "A"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.factura_sufijo, "A")
+
+    def test_autosave_factura_sufijo_sin_novedad_rechazado(self):
+        self._tomar_bloqueo()
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({"tipo": "documento", "id": self.doc.pk,
+                        "campo": "factura_sufijo", "valor": "A"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_desactivar_novedad_limpia_sufijo(self):
+        self._tomar_bloqueo()
+        self.doc.subsanar_novedad = True
+        self.doc.factura_sufijo = "AA"
+        self.doc.save()
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({"tipo": "documento", "id": self.doc.pk,
+                        "campo": "subsanar_novedad", "valor": "false"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.doc.refresh_from_db()
+        self.assertFalse(self.doc.subsanar_novedad)
+        self.assertEqual(self.doc.factura_sufijo, "")
+
 
 class SplitDocumentoTest(TestCase):
     def setUp(self):
