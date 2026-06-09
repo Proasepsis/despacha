@@ -183,6 +183,17 @@ class VistaRevisionTest(TestCase):
         auditoria = Auditoria.objects.filter(tipo_evento="forzar_liberacion").first()
         self.assertIsNotNone(auditoria)
 
+    def test_documento_campos_novedad_defaults(self):
+        nuevo = Documento.objects.create(
+            corte=self.corte,
+            factura="NUEVO001",
+            nit="999999",
+            clasificador1="EMBALAR",
+            observaciones="NO PRIORIDAD",
+        )
+        self.assertFalse(nuevo.subsanar_novedad)
+        self.assertEqual(nuevo.factura_sufijo, "")
+
 
 class SplitDocumentoTest(TestCase):
     def setUp(self):

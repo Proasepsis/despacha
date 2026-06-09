@@ -1,6 +1,7 @@
 import json
 import logging
 
+from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
@@ -9,6 +10,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, DetailView
+
+from datetime import timedelta
+
+from django.db.models import Count
+from django.utils import timezone
 
 from cortes.models import Corte, Documento, Linea
 from cortes.forms import CargarCorteForm
@@ -42,6 +48,14 @@ class ListaCortesView(LoginRequiredMixin, ListView):
     template_name = "cortes/lista.html"
     context_object_name = "cortes"
     paginate_by = 20
+
+    def get_queryset(self):
+        hace_30_dias = timezone.localdate() - timedelta(days=30)
+        return super().get_queryset().filter(
+            fecha__gte=hace_30_dias,
+        ).annotate(
+            documentos_count=Count("documentos"),
+        )
 
 
 class CargarCorteView(LoginRequiredMixin, EsOperarioOAdminMixin, View):
@@ -133,7 +147,6 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                 "nit": doc.nit,
                 "clasificador1": doc.clasificador1,
                 "observaciones": doc.observaciones,
-                "creado_por_split": doc.creado_por_split_de_id is not None,
                 "lineas": lineas_data,
             })
 
@@ -366,3 +379,9 @@ class GenerarCorteView(LoginRequiredMixin, View):
             return response
         except Exception:
             return fallback_response
+
+
+class LogoutView(View):
+    def post(self, request):
+        auth_logout(request)
+        return redirect("admin:login")

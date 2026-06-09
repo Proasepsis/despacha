@@ -75,6 +75,8 @@ class Documento(models.Model):
     )
     clasificador1 = models.CharField(max_length=20, default="EMBALAR")
     observaciones = models.CharField(max_length=20, default="NO PRIORIDAD")
+    subsanar_novedad = models.BooleanField(default=False)
+    factura_sufijo   = models.CharField(max_length=10, blank=True, default="")
     creado_por_split_de = models.ForeignKey(
         "self",
         null=True,
