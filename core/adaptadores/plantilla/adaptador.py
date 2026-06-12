@@ -206,7 +206,9 @@ class AdaptadorPlantilla(AdaptadorFormato):
             if not cuenta_contable.startswith("14"):
                 continue
 
-            if debito_credito != "C":
+            # T+10 (traslados) acepta tanto D como C; los demás solo C
+            es_traslado = tipo_comprobante == "T" and codigo_int == 10
+            if not es_traslado and debito_credito != "C":
                 continue
 
             cantidad_dec = Decimal("0")

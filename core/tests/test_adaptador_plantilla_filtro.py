@@ -116,6 +116,25 @@ class AdaptadorPlantillaFiltroTest(TestCase):
         total_lineas = sum(len(d.lineas) for d in documentos)
         self.assertEqual(total_lineas, 5)
 
+    def test_t10_acepta_debito_y_credito(self):
+        filas = [
+            # T+10 con C: debe incluirse
+            ["DOC001", "T", "10", "143505", "C", "150", "0005", "000005", "8", "L1", "800000", "11001", "Desc 1"],
+            # T+10 con D: también debe incluirse (traslado)
+            ["DOC002", "T", "10", "143510", "D", "150", "0005", "000005", "3", "L2", "800001", "11001", "Desc 2"],
+            # F+1 con D: debe excluirse (solo T+10 exime el filtro D/C)
+            ["DOC003", "F", "1", "143515", "D", "150", "0005", "000005", "5", "L3", "800002", "11001", "Desc 3"],
+        ]
+
+        ruta = Path("/tmp/test_t10_debito.xlsx")
+        _crear_excel_plantilla(ruta, filas)
+
+        documentos = self.adaptador.parse(ruta)
+        ruta.unlink(missing_ok=True)
+
+        facturas = sorted(d.factura for d in documentos)
+        self.assertEqual(facturas, ["DOC001", "DOC002"])
+
     def test_agrupacion_por_documento(self):
         filas = [
             ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc 1"],
