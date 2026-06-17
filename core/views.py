@@ -52,7 +52,20 @@ class AuditoriaListView(LoginRequiredMixin, EsAdminOConsultarMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
+        from django.db.models import Q
+        from cortes.models import Documento
+
         qs = Auditoria.objects.select_related("usuario").all()
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            doc_ids = list(
+                Documento.objects.filter(factura__icontains=q).values_list("pk", flat=True)
+            )
+            qs = qs.filter(
+                Q(valor_anterior__icontains=q)
+                | Q(valor_nuevo__icontains=q)
+                | Q(objeto_tipo="Documento", objeto_id__in=[str(pk) for pk in doc_ids])
+            )
         tipo = self.request.GET.get("tipo_evento")
         if tipo:
             qs = qs.filter(tipo_evento=tipo)

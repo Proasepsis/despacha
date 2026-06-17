@@ -10,6 +10,11 @@
 
 <div class="card" style="margin-bottom:1.25rem;">
     <form method="get" style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end;">
+        <div style="flex:1;min-width:160px;">
+            <label style="display:block;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:.35rem;">Factura / valor</label>
+            <input type="text" name="q" value="{{ request.GET.q }}" placeholder="ej. 58594"
+                   style="width:100%;padding:.4rem .6rem;font-size:12px;font-family:var(--font-mono);background:var(--surface-raised);border:1px solid var(--border-mid);border-radius:5px;color:var(--text);box-sizing:border-box;">
+        </div>
         <div>
             <label style="display:block;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:.35rem;">Desde</label>
             <input type="date" name="fecha_desde" value="{{ request.GET.fecha_desde }}"
