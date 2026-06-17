@@ -32,7 +32,9 @@
       <option value="{{ u.pk }}" {% if params.usuario == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
       {% endfor %}
     </select>
+    <span class="filtro-label">Desde</span>
     <input type="date" name="desde" value="{{ params.desde }}" class="filtro-date" title="Desde">
+    <span class="filtro-label">Hasta</span>
     <input type="date" name="hasta" value="{{ params.hasta }}" class="filtro-date" title="Hasta">
     {% if filtros_activos %}
     <a href="{% url 'lista_cortes' %}" class="filtro-clear" title="Limpiar filtros">✕</a>
@@ -257,9 +259,15 @@
 .filtro-date:focus {
     border-color: var(--accent);
 }
-.filtro-q { flex: 1; min-width: 0; }
-.filtro-select { width: 130px; }
-.filtro-date { width: 118px; }
+.filtro-q { flex: 2; min-width: 0; }
+.filtro-select { width: 125px; }
+.filtro-date { width: 100px; }
+.filtro-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
 .filtro-clear {
     font-size: 11px;
     color: var(--text-muted);
