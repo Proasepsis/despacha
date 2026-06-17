@@ -65,7 +65,6 @@ def cargar_archivo(
     formato_origen: str,
     numero_corte: int,
     es_adicional: bool = False,
-    tipo_comprobante: str = "",
     fecha: date | None = None,
 ) -> tuple[Corte, ResultadoProcesamiento]:
     contenido = archivo.read()

@@ -15,12 +15,6 @@ class CargarCorteForm(forms.Form):
         help_text="Sugerido según la hora; puede ajustarse.",
     )
     es_adicional = forms.BooleanField(required=False, label="Es adicional")
-    tipo_comprobante = forms.CharField(
-        required=False,
-        max_length=80,
-        label="Tipo de comprobante",
-        widget=forms.TextInput(attrs={"placeholder": "Ej: F1, H5, Facturas…"}),
-    )
 
     def clean_archivo(self):
         archivo = self.cleaned_data["archivo"]
