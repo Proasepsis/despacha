@@ -5,12 +5,15 @@
 {% block content %}
 <div class="toolbar">
     <h2 style="flex:1;">Cortes de facturación</h2>
+    <button type="button" id="btn-filtros" class="btn btn-secondary{% if filtros_activos %} filtros-on{% endif %}">
+        Filtros{% if filtros_activos %} ·{% endif %}
+    </button>
     {% if perms.cortes.add_corte %}
     <a href="{% url 'cargar_corte' %}" class="btn btn-primary" data-kb="nuevo">+ Cargar archivo</a>
     {% endif %}
 </div>
 
-<form method="get" id="filtros-form" style="margin-bottom:1rem;">
+<form method="get" id="filtros-form" class="filtros-panel{% if not filtros_activos %} filtros-oculto{% endif %}">
   <div class="filtros-bar">
     <input type="search" name="q" value="{{ params.q }}"
            placeholder="Factura o NIT…"
@@ -212,6 +215,22 @@
     grid-column: 1 / -1;
 }
 
+/* ── panel de filtros colapsable ── */
+.filtros-panel { margin-bottom: 1rem; }
+.filtros-oculto { display: none; }
+.btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border-mid);
+    color: var(--text-soft);
+    border-radius: 6px;
+    padding: .4rem .75rem;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+.btn-secondary.filtros-on { border-color: var(--accent); color: var(--accent); }
+
 /* ── barra de filtros ── */
 .filtros-bar {
     display: flex;
@@ -282,6 +301,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (e.key === 'ArrowDown' && i < rows.length - 1) { e.preventDefault(); moveTo(rows[i + 1]); }
                 if (e.key === 'ArrowUp'   && i > 0)               { e.preventDefault(); moveTo(rows[i - 1]); }
             });
+        });
+    }
+
+    // ── toggle panel de filtros ──
+    var btnFiltros = document.getElementById('btn-filtros');
+    var panel = document.getElementById('filtros-form');
+    if (btnFiltros && panel) {
+        btnFiltros.addEventListener('click', function() {
+            panel.classList.toggle('filtros-oculto');
         });
     }
 
