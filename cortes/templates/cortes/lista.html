@@ -36,7 +36,7 @@
             <a href="{% url 'detalle_corte' corte.pk %}"
                class="corte-row{% if corte.adicional_letra %} row-adicional{% else %} row-base{% endif %}">
                 <span class="row-name">{{ corte.display_corte }}</span>
-                <span class="row-tipo">{{ corte.tipo_comprobante|default:"—" }}</span>
+                <span class="row-tipo">{{ corte.tipos }}</span>
                 <span class="badge badge-{{ corte.estado }}">{{ corte.get_estado_display }}</span>
                 <div class="row-meta">
                     <span>{{ corte.documentos_count }}</span>

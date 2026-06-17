@@ -58,11 +58,14 @@ class ListaCortesView(LoginRequiredMixin, ListView):
             fecha__gte=hace_30_dias,
         ).annotate(
             documentos_count=Count("documentos"),
-        ).order_by("-fecha", "numero_corte", "adicional_letra")
+        ).prefetch_related("documentos").order_by("-fecha", "numero_corte", "adicional_letra")
 
     def get_context_data(self, **kwargs):
         from itertools import groupby
         ctx = super().get_context_data(**kwargs)
+        for corte in ctx["cortes"]:
+            tipos = sorted({d.tipo_comprobante for d in corte.documentos.all() if d.tipo_comprobante})
+            corte.tipos = "·".join(tipos) if tipos else "—"
         dias = []
         for fecha, fecha_iter in groupby(ctx["cortes"], key=lambda c: c.fecha):
             grupos = []
