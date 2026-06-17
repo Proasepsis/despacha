@@ -14,3 +14,4 @@ staticfiles/
 logs/
 *.log
 .claude/settings.local.json
+docs/superpowers/
