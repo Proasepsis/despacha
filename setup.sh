@@ -10,14 +10,73 @@ info() { echo -e "${CYAN}→${NC} $*"; }
 warn() { echo -e "${YELLOW}⚠${NC} $*"; }
 die()  { echo -e "${RED}✗ ERROR:${NC} $*"; exit 1; }
 
-# ── prerequisitos ──────────────────────────────────────────────────────────
+# ── instalar dependencias automáticamente ─────────────────────────────────
+install_deps() {
+    # Solo soporta Debian/Ubuntu
+    if ! command -v apt-get &>/dev/null; then
+        die "Instalación automática solo soporta Debian/Ubuntu. Instala Docker y Git manualmente."
+    fi
+
+    # Git
+    if ! command -v git &>/dev/null; then
+        info "Instalando Git..."
+        ${SUDO_CMD} apt-get update -qq && ${SUDO_CMD} apt-get install -y -qq git
+        ok "Git instalado ($(git --version))"
+    else
+        ok "Git ya instalado ($(git --version))"
+    fi
+
+    # OpenSSL (casi siempre presente, pero por si acaso)
+    if ! command -v openssl &>/dev/null; then
+        info "Instalando OpenSSL..."
+        ${SUDO_CMD} apt-get install -y -qq openssl
+        ok "OpenSSL instalado"
+    fi
+
+    # Docker
+    if ! command -v docker &>/dev/null; then
+        info "Instalando Docker (puede tardar 1-2 minutos)..."
+        curl -fsSL https://get.docker.com | ${SUDO_CMD} bash
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            ${SUDO_CMD} usermod -aG docker "$SUDO_USER"
+            warn "Usuario '$SUDO_USER' agregado al grupo docker."
+            warn "Cuando termine el setup, cierra sesión y vuelve a entrar para usar docker sin sudo."
+        fi
+        ok "Docker instalado ($(docker --version))"
+    else
+        ok "Docker ya instalado ($(docker --version))"
+    fi
+
+    # Docker Compose plugin v2
+    if ! docker compose version &>/dev/null; then
+        info "Instalando Docker Compose plugin..."
+        ${SUDO_CMD} apt-get install -y -qq docker-compose-plugin
+        ok "Docker Compose instalado ($(docker compose version))"
+    else
+        ok "Docker Compose ya instalado ($(docker compose version))"
+    fi
+}
+
+# ── verificar que todo esté listo ──────────────────────────────────────────
 check_deps() {
     for cmd in docker git openssl; do
-        command -v "$cmd" &>/dev/null || die "Falta '$cmd'. Instálalo antes de continuar."
+        command -v "$cmd" &>/dev/null || die "Falta '$cmd' después de la instalación. Algo salió mal."
     done
-    docker compose version &>/dev/null || die "Falta 'docker compose' (plugin v2)."
-    ok "Dependencias OK (docker, git, openssl)"
+    docker compose version &>/dev/null || die "Falta 'docker compose' plugin v2."
+    ok "Dependencias verificadas"
 }
+
+# ── verificar root para instalar paquetes ─────────────────────────────────
+if [[ $EUID -ne 0 ]]; then
+    warn "No se está ejecutando como root. Si faltan Docker o Git, el script pedirá sudo."
+    SUDO_CMD="sudo"
+else
+    SUDO_CMD=""
+fi
+
+# Instalar lo que falte
+install_deps
+check_deps
 
 # ── modo (prod / dev) ──────────────────────────────────────────────────────
 MODO="${1:-}"
