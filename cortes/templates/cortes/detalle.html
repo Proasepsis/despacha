@@ -43,6 +43,9 @@
         <div style="display:flex;align-items:center;gap:1rem;">
             <span style="font-family:var(--font-mono);font-weight:500;font-size:13px;color:var(--text);">{{ doc.factura }}</span>
             <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">NIT {{ doc.nit }}</span>
+            {% if doc.tipo_comprobante %}
+            <span style="background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:.1rem .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.tipo_comprobante }}</span>
+            {% endif %}
             <span style="background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:.1rem .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.lineas|length }} líneas</span>
         </div>
 
