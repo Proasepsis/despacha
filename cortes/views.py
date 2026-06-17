@@ -168,6 +168,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                 "id": doc.id,
                 "factura": doc.factura,
                 "nit": doc.nit,
+                "tipo_comprobante": doc.tipo_comprobante,
                 "clasificador1": doc.clasificador1,
                 "observaciones": doc.observaciones,
                 "subsanar_novedad": doc.subsanar_novedad,

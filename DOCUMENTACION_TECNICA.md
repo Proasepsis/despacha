@@ -217,7 +217,6 @@ Campo principal que agrupa todos los documentos de un período.
 | `fecha` | DateField | Fecha del corte (indexada) |
 | `numero_corte` | SmallInt | 1 ó 2 (Corte 1 / Corte 2) |
 | `adicional_letra` | CharField(1) | `""` para el principal; `"A"`, `"B"`... para adicionales del mismo día |
-| `tipo_comprobante` | CharField(80) | Texto libre descriptivo (ej: "F1, H5") — solo informativo, no filtra |
 | `estado` | CharField(20) | `cargado` → `en_revision` → `generado` / `con_error` |
 | `version_actual` | SmallInt | Número de veces que se ha generado el XLS (0 = nunca generado) |
 | `bloqueado_por` | FK → User (nullable) | Usuario que tiene el corte abierto para editar |
@@ -569,7 +568,7 @@ Fila del Excel
 | `S` | `1` | Devolución / nota |
 | `T` | `10` | Traslado entre bodegas |
 
-> **Importante**: el campo `tipo_comprobante` que el usuario escribe en el formulario de carga es solo **informativo** (se guarda en el `Corte` y se muestra en la lista). El filtro real siempre usa el diccionario `CODIGOS_PERMITIDOS` aplicado fila por fila al Excel.
+> **Nota**: el `tipo_comprobante` de cada fila se detecta automáticamente del Excel y se guarda en el `Documento` correspondiente. El filtro real siempre usa el diccionario `CODIGOS_PERMITIDOS` aplicado fila por fila al Excel.
 
 > **Nota sobre T+10 con D**: Las líneas de tipo `T` código `10` con `DÉBITO O CRÉDITO = D` son **descartadas** por el Filtro 4. Si se requiere incluir débitos para traslados, debe modificarse el filtro en `adaptador.py` línea 209.
 
@@ -579,7 +578,7 @@ Fila del Excel
 
 ### `cargar.py` — Subida del archivo
 
-**Función principal**: `cargar_archivo(archivo, usuario, formato_origen, numero_corte, es_adicional, tipo_comprobante, fecha) → (Corte, ResultadoProcesamiento)`
+**Función principal**: `cargar_archivo(archivo, usuario, formato_origen, numero_corte, es_adicional, fecha) → (Corte, ResultadoProcesamiento)`
 
 **Excepciones que puede lanzar**:
 - `ErrorDuplicado(corte_existente_id)`: el mismo archivo ya fue subido.
@@ -823,7 +822,6 @@ DESTINOS_DISPONIBLES = {
 | `formato_origen` | ChoiceField | Solo `"PLANTILLA"` disponible |
 | `numero_corte` | ChoiceField | `1` ó `2` |
 | `es_adicional` | BooleanField | Opcional, default `False` |
-| `tipo_comprobante` | CharField(80) | Opcional, solo informativo |
 
 ---
 
