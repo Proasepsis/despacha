@@ -74,7 +74,9 @@
         <span class="meta-dot">·</span>
         <span>Versión</span>
         <span class="meta-dot">·</span>
-        <span>Usuario</span>
+        <span>U. Carga</span>
+        <span class="meta-dot">·</span>
+        <span>U. Genera</span>
     </span>
 </div>
 
@@ -98,6 +100,10 @@
                     <span>v{{ corte.version_actual }}</span>
                     <span class="meta-dot">·</span>
                     <span>{{ corte.usuario_carga.username }}</span>
+                    {% if corte.usuario_genera %}
+                    <span class="meta-dot">·</span>
+                    <span class="meta-genera">{{ corte.usuario_genera }}</span>
+                    {% endif %}
                 </div>
             </a>
             {% endfor %}
@@ -136,7 +142,7 @@
 .cortes-header,
 .corte-row {
     display: grid;
-    grid-template-columns: 90px 1fr 118px 160px;
+    grid-template-columns: 90px 1fr 118px 220px;
     align-items: center;
     gap: 0 .75rem;
     padding: .5rem 1rem;
@@ -226,6 +232,7 @@
     color: var(--text-muted);
 }
 .meta-dot { color: var(--border-mid); }
+.meta-genera { color: var(--accent); }
 
 .grupo-sep {
     height: 0;

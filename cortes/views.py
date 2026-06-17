@@ -69,7 +69,7 @@ class ListaCortesView(LoginRequiredMixin, ListView):
 
         qs = super().get_queryset().annotate(
             documentos_count=Count("documentos"),
-        ).prefetch_related("documentos").order_by("-fecha", "numero_corte", "adicional_letra")
+        ).prefetch_related("documentos", "versiones__usuario").order_by("-fecha", "numero_corte", "adicional_letra")
 
         if not hay_filtro:
             hace_30 = timezone.localdate() - timedelta(days=30)
@@ -101,6 +101,8 @@ class ListaCortesView(LoginRequiredMixin, ListView):
         for corte in ctx["cortes"]:
             tipos = sorted({d.tipo_comprobante for d in corte.documentos.all() if d.tipo_comprobante})
             corte.tipos = "·".join(tipos) if tipos else "—"
+            versiones = sorted(corte.versiones.all(), key=lambda v: v.numero)
+            corte.usuario_genera = versiones[-1].usuario.username if versiones else None
 
         dias = []
         for fecha, fecha_iter in groupby(ctx["cortes"], key=lambda c: c.fecha):
