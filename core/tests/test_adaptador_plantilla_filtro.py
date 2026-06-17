@@ -247,6 +247,28 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
         self.assertEqual(len(documentos), 0)
 
+    def test_producto_codigo_con_celdas_float(self):
+        """Celdas numéricas devueltas como float por openpyxl deben producir el código correcto."""
+        filas = [
+            ["DOC001", "F", "1", "143505", "C", 150.0, 5.0, 5.0, 10, "L1", "800000", "11001", "Desc"],
+        ]
+        ruta = Path("/tmp/test_codigo_float.xlsx")
+        _crear_excel_plantilla(ruta, filas)
+
+        documentos = self.adaptador.parse(ruta)
+        ruta.unlink(missing_ok=True)
+
+        self.assertEqual(len(documentos), 1)
+        linea = documentos[0].lineas[0]
+        self.assertEqual(linea.producto_codigo, "1500005000005")
+
+    def test_a_str_float_entero_sin_punto_final(self):
+        """_a_str(150.0) debe devolver '150', no '150.'"""
+        from core.adaptadores.plantilla.adaptador import _a_str
+        self.assertEqual(_a_str(150.0), "150")
+        self.assertEqual(_a_str(5.0), "5")
+        self.assertEqual(_a_str(7.5), "7.5")
+
     def test_nit_y_ciudad_se_propagan(self):
         filas = [
             ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "900123456", "11001", "Desc 1"],

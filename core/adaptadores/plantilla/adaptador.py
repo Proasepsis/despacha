@@ -44,10 +44,7 @@ def _a_str(valor) -> str:
     if valor is None:
         return ""
     if isinstance(valor, float):
-        texto = f"{valor:.6f}".rstrip("0")
-        if texto.endswith("."):
-            return texto
-        return f"{valor:g}"
+        return f"{valor:.6f}".rstrip("0").rstrip(".")
     return str(valor)
 
 
