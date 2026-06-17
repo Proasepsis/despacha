@@ -1,5 +1,6 @@
 import csv
 import os
+import shutil
 from io import StringIO
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -36,13 +37,43 @@ class PanelConfigView(LoginRequiredMixin, EsAdminMixin, View):
         debug = os.environ.get("DEBUG", "False") == "True"
         env_name = os.environ.get("ENVIRONMENT", "producción")
 
+        recursos = _recursos_servidor()
+
         return render(request, self.template_name, {
             "drive_ok": drive_ok,
+            "recursos": recursos,
             "drive_root": drive_root,
             "smtp_ok": smtp_ok,
             "debug": debug,
             "env_name": env_name,
         })
+
+
+def _recursos_servidor():
+    disco = shutil.disk_usage("/")
+    ram = {"total_gb": 0, "disponible_gb": 0, "usado_pct": 0}
+    try:
+        with open("/proc/meminfo") as f:
+            mem = {k.strip(): int(v.split()[0]) for k, v in (l.split(":") for l in f)}
+        total_kb = mem["MemTotal"]
+        disponible_kb = mem["MemAvailable"]
+        ram = {
+            "total_gb": round(total_kb / 1_048_576, 1),
+            "disponible_gb": round(disponible_kb / 1_048_576, 1),
+            "usado_pct": round((total_kb - disponible_kb) / total_kb * 100),
+        }
+    except Exception:
+        pass
+    load1, load5, _ = os.getloadavg()
+    return {
+        "disco_total_gb": round(disco.total / 1_073_741_824, 1),
+        "disco_usado_gb": round(disco.used / 1_073_741_824, 1),
+        "disco_libre_gb": round(disco.free / 1_073_741_824, 1),
+        "disco_usado_pct": round(disco.used / disco.total * 100),
+        "ram": ram,
+        "load1": round(load1, 2),
+        "load5": round(load5, 2),
+    }
 
 
 class AuditoriaListView(LoginRequiredMixin, EsAdminOConsultarMixin, ListView):

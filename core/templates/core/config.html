@@ -59,6 +59,47 @@
 
 </div>
 
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-header">Recursos del servidor</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+
+        <div>
+            <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:.5rem;">Disco</div>
+            <div style="font-size:15px;font-weight:600;color:{% if recursos.disco_usado_pct > 85 %}var(--danger){% elif recursos.disco_usado_pct > 70 %}var(--warning){% else %}var(--success){% endif %};">
+                {{ recursos.disco_usado_pct }}%
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:.25rem;">
+                {{ recursos.disco_usado_gb }} / {{ recursos.disco_total_gb }} GB &nbsp;·&nbsp; libre {{ recursos.disco_libre_gb }} GB
+            </div>
+            <div style="margin-top:.5rem;height:4px;border-radius:2px;background:var(--border-mid);overflow:hidden;">
+                <div style="height:100%;width:{{ recursos.disco_usado_pct }}%;background:{% if recursos.disco_usado_pct > 85 %}var(--danger){% elif recursos.disco_usado_pct > 70 %}var(--warning){% else %}var(--accent){% endif %};transition:width .3s;"></div>
+            </div>
+        </div>
+
+        <div>
+            <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:.5rem;">RAM</div>
+            <div style="font-size:15px;font-weight:600;color:{% if recursos.ram.usado_pct > 85 %}var(--danger){% elif recursos.ram.usado_pct > 70 %}var(--warning){% else %}var(--success){% endif %};">
+                {{ recursos.ram.usado_pct }}%
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:.25rem;">
+                total {{ recursos.ram.total_gb }} GB &nbsp;·&nbsp; libre {{ recursos.ram.disponible_gb }} GB
+            </div>
+            <div style="margin-top:.5rem;height:4px;border-radius:2px;background:var(--border-mid);overflow:hidden;">
+                <div style="height:100%;width:{{ recursos.ram.usado_pct }}%;background:{% if recursos.ram.usado_pct > 85 %}var(--danger){% elif recursos.ram.usado_pct > 70 %}var(--warning){% else %}var(--accent){% endif %};transition:width .3s;"></div>
+            </div>
+        </div>
+
+        <div>
+            <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:.5rem;">CPU Load avg</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text);">{{ recursos.load1 }}</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:.25rem;">
+                1 min &nbsp;·&nbsp; 5 min {{ recursos.load5 }}
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">Datos maestros</div>
     <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
