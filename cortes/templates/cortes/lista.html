@@ -10,6 +10,39 @@
     {% endif %}
 </div>
 
+<form method="get" id="filtros-form" style="margin-bottom:1rem;">
+  <div class="filtros-bar">
+    <input type="search" name="q" value="{{ params.q }}"
+           placeholder="Factura o NIT…"
+           class="filtro-input filtro-q"
+           autocomplete="off">
+    <select name="estado" class="filtro-select">
+      <option value="">Todos los estados</option>
+      <option value="cargado"     {% if params.estado == "cargado" %}selected{% endif %}>Cargado</option>
+      <option value="en_revision" {% if params.estado == "en_revision" %}selected{% endif %}>En revisión</option>
+      <option value="generado"    {% if params.estado == "generado" %}selected{% endif %}>Generado</option>
+      <option value="con_error"   {% if params.estado == "con_error" %}selected{% endif %}>Con error</option>
+    </select>
+    <select name="usuario" class="filtro-select">
+      <option value="">Todos los usuarios</option>
+      {% for u in usuarios_carga %}
+      <option value="{{ u.pk }}" {% if params.usuario == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="desde" value="{{ params.desde }}" class="filtro-date" title="Desde">
+    <input type="date" name="hasta" value="{{ params.hasta }}" class="filtro-date" title="Hasta">
+    {% if filtros_activos %}
+    <a href="{% url 'lista_cortes' %}" class="filtro-clear" title="Limpiar filtros">✕</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if filtros_activos %}
+<p class="filtro-aviso">
+  Se encontr{% if total_filtrado == 1 %}ó 1 corte{% else %}aron {{ total_filtrado }} cortes{% endif %}
+</p>
+{% endif %}
+
 {% if dias %}
 <div class="cortes-header">
     <span>Corte</span>
@@ -55,6 +88,10 @@
     </div>
 {% endfor %}
 </div>
+{% elif filtros_activos %}
+<p style="text-align:center;color:var(--text-muted);padding:3rem;font-size:13px;">
+    No se encontraron cortes con esos filtros.
+</p>
 {% else %}
 <p style="text-align:center;color:var(--text-muted);padding:3rem;font-size:13px;">
     No hay cortes en los últimos 30 días.
@@ -64,11 +101,11 @@
 {% if is_paginated %}
 <div class="pagination">
     {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+    <a href="?{% if filtros_activos %}q={{ params.q }}&estado={{ params.estado }}&usuario={{ params.usuario }}&desde={{ params.desde }}&hasta={{ params.hasta }}&{% endif %}page={{ page_obj.previous_page_number }}">&laquo;</a>
     {% endif %}
     <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+    <a href="?{% if filtros_activos %}q={{ params.q }}&estado={{ params.estado }}&usuario={{ params.usuario }}&desde={{ params.desde }}&hasta={{ params.hasta }}&{% endif %}page={{ page_obj.next_page_number }}">&raquo;</a>
     {% endif %}
 </div>
 {% endif %}
@@ -174,27 +211,96 @@
     border-bottom: 2px solid var(--border);
     grid-column: 1 / -1;
 }
+
+/* ── barra de filtros ── */
+.filtros-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+}
+.filtro-input,
+.filtro-select,
+.filtro-date {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-mid);
+    border-radius: 6px;
+    padding: .35rem .6rem;
+    color: var(--text);
+    outline: none;
+}
+.filtro-input:focus,
+.filtro-select:focus,
+.filtro-date:focus {
+    border-color: var(--accent);
+}
+.filtro-q { flex: 1; min-width: 160px; }
+.filtro-select { min-width: 140px; }
+.filtro-date { width: 130px; }
+.filtro-clear {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: .35rem .5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    line-height: 1;
+}
+.filtro-clear:hover { color: var(--text); border-color: var(--border-mid); }
+.filtro-aviso {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 .5rem 0;
+    padding: 0 .25rem;
+}
+@media (max-width: 600px) {
+    .filtro-q { width: 100%; }
+    .filtro-select,
+    .filtro-date { flex: 1; min-width: 0; }
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ── navegación teclado en filas ──
     var rows = Array.from(document.querySelectorAll('.corte-row'));
-    if (!rows.length) return;
-    rows.forEach(function(r, i) {
-        r.setAttribute('tabindex', i === 0 ? '0' : '-1');
-        r.setAttribute('data-nav-item', '');
-    });
-    function moveTo(r) {
-        rows.forEach(function(x) { x.setAttribute('tabindex', '-1'); });
-        r.setAttribute('tabindex', '0');
-        r.focus();
-    }
-    rows.forEach(function(r, i) {
-        r.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowDown' && i < rows.length - 1) { e.preventDefault(); moveTo(rows[i + 1]); }
-            if (e.key === 'ArrowUp'   && i > 0)               { e.preventDefault(); moveTo(rows[i - 1]); }
+    if (rows.length) {
+        rows.forEach(function(r, i) {
+            r.setAttribute('tabindex', i === 0 ? '0' : '-1');
+            r.setAttribute('data-nav-item', '');
         });
+        function moveTo(r) {
+            rows.forEach(function(x) { x.setAttribute('tabindex', '-1'); });
+            r.setAttribute('tabindex', '0');
+            r.focus();
+        }
+        rows.forEach(function(r, i) {
+            r.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowDown' && i < rows.length - 1) { e.preventDefault(); moveTo(rows[i + 1]); }
+                if (e.key === 'ArrowUp'   && i > 0)               { e.preventDefault(); moveTo(rows[i - 1]); }
+            });
+        });
+    }
+
+    // ── filtros: submit automático ──
+    var form = document.getElementById('filtros-form');
+    if (!form) return;
+
+    form.querySelectorAll('select, input[type="date"]').forEach(function(el) {
+        el.addEventListener('change', function() { form.submit(); });
     });
+
+    var timer;
+    var qInput = form.querySelector('input[type="search"]');
+    if (qInput) {
+        qInput.addEventListener('input', function() {
+            clearTimeout(timer);
+            timer = setTimeout(function() { form.submit(); }, 400);
+        });
+    }
 });
 </script>
 {% endblock %}
