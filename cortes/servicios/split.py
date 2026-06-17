@@ -28,6 +28,8 @@ def partir_documento(
     lineas_ids_a_mover: list[int],
     usuario: User,
 ) -> Documento:
+    if documento_origen.corte.estado != "en_revision":
+        raise ValueError("No se puede partir un documento en un corte que no está en revisión. Regenere si ya fue generado.")
     if not lineas_ids_a_mover:
         raise ValueError("Debe seleccionar al menos una línea para mover.")
 
