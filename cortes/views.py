@@ -40,6 +40,8 @@ class EsFacturacionOAdminMixin(UserPassesTestMixin):
 
 
 class EsAlmacenamientoOAdminMixin(UserPassesTestMixin):
+    raise_exception = True
+
     def test_func(self):
         return self.request.user.groups.filter(name__in=["almacenamiento", "admin"]).exists()
 
@@ -187,7 +189,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class EditarCorteView(LoginRequiredMixin, View):
+class EditarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
 
@@ -204,9 +206,8 @@ class EditarCorteView(LoginRequiredMixin, View):
         if not tipo or not obj_id or not campo:
             return HttpResponseBadRequest("Faltan campos requeridos")
 
-        grupos = set(request.user.groups.values_list("name", flat=True))
-        if not bool(grupos & {"almacenamiento", "admin"}):
-            return HttpResponseForbidden("Sin permisos para editar")
+        if valor is None:
+            return HttpResponseBadRequest("El campo valor es requerido")
 
         try:
             with transaction.atomic():
@@ -243,16 +244,14 @@ class EditarCorteView(LoginRequiredMixin, View):
                         return HttpResponseBadRequest(f"Campo no editable: {campo}")
 
                     try:
-                        nuevo_valor = str(valor)
-                        from decimal import Decimal, InvalidOperation
-                        dec = Decimal(nuevo_valor)
-                        if dec <= 0:
+                        entero = round(float(str(valor)))
+                        if entero <= 0:
                             return HttpResponseBadRequest("La cantidad debe ser positiva")
-                    except (InvalidOperation, ValueError):
+                    except (TypeError, ValueError):
                         return HttpResponseBadRequest("Cantidad inválida")
 
                     valor_anterior = linea.cantidad_unidades
-                    linea.cantidad_unidades = dec
+                    linea.cantidad_unidades = entero
                     linea.save(update_fields=["cantidad_unidades"])
 
                     registrar_auditoria(
@@ -261,7 +260,7 @@ class EditarCorteView(LoginRequiredMixin, View):
                         objeto_id=str(linea.pk),
                         campo="cantidad_unidades",
                         valor_anterior=str(valor_anterior),
-                        valor_nuevo=str(dec),
+                        valor_nuevo=str(entero),
                         tipo_evento="edicion",
                     )
 
@@ -277,13 +276,9 @@ class EditarCorteView(LoginRequiredMixin, View):
         })
 
 
-class SplitDocumentoView(LoginRequiredMixin, View):
+class SplitDocumentoView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
-
-        grupos = set(request.user.groups.values_list("name", flat=True))
-        if not bool(grupos & {"almacenamiento", "admin"}):
-            return HttpResponseForbidden("Sin permisos para editar")
 
         try:
             body = json.loads(request.body)
@@ -310,13 +305,9 @@ class SplitDocumentoView(LoginRequiredMixin, View):
         })
 
 
-class DeshacerSplitView(LoginRequiredMixin, View):
+class DeshacerSplitView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
-
-        grupos = set(request.user.groups.values_list("name", flat=True))
-        if not bool(grupos & {"almacenamiento", "admin"}):
-            return HttpResponseForbidden("Sin permisos para editar")
 
         try:
             body = json.loads(request.body)
@@ -347,13 +338,9 @@ class ForzarLiberacionView(LoginRequiredMixin, View):
         return JsonResponse({"ok": True})
 
 
-class GenerarCorteView(LoginRequiredMixin, View):
+class GenerarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
-
-        grupos = set(request.user.groups.values_list("name", flat=True))
-        if not bool(grupos & {"almacenamiento", "admin"}):
-            return HttpResponseForbidden("Sin permisos para generar")
 
         destinos = request.POST.getlist("destinos")
         motivo = request.POST.get("motivo", "")

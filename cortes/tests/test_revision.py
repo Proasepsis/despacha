@@ -113,7 +113,7 @@ class VistaRevisionTest(TestCase):
                 "tipo": "linea",
                 "id": self.linea.pk,
                 "campo": "cantidad_unidades",
-                "valor": "100.50",
+                "valor": "100",
             }),
             content_type="application/json",
         )
@@ -122,7 +122,7 @@ class VistaRevisionTest(TestCase):
         self.assertTrue(response.json()["ok"])
 
         self.linea.refresh_from_db()
-        self.assertEqual(self.linea.cantidad_unidades, 100.50)
+        self.assertEqual(self.linea.cantidad_unidades, 100)
 
     def test_cantidad_negativa_rechazada(self):
         self.client.login(username="alm1", password="test")
@@ -168,6 +168,15 @@ class VistaRevisionTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ok"])
+
+    def test_editar_con_valor_null_retorna_400(self):
+        self.client.login(username="alm1", password="test")
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({"tipo": "documento", "id": self.doc.pk, "campo": "clasificador1", "valor": None}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_forzar_liberacion_admin(self):
         # Fijamos manualmente un bloqueo legacy para probar la liberación forzada
@@ -339,6 +348,13 @@ class SplitDocumentoTest(TestCase):
 
         with self.assertRaises(Documento.DoesNotExist):
             Documento.objects.get(pk=nuevo.pk)
+
+    def test_split_en_corte_generado_no_permitido(self):
+        self.corte.estado = "generado"
+        self.corte.save()
+
+        with self.assertRaises(ValueError):
+            partir_documento(self.doc, [self.l1.pk], self.usuario)
 
     def test_deshacer_split_corte_generado_no_permitido(self):
         nuevo = partir_documento(self.doc, [self.l1.pk], self.usuario)

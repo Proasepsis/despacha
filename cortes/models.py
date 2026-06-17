@@ -111,7 +111,7 @@ class Linea(models.Model):
     referencia = models.CharField(max_length=50)
     lote = models.CharField(max_length=50)
     cantidad_origen = models.DecimalField(max_digits=12, decimal_places=2)
-    cantidad_unidades = models.DecimalField(max_digits=14, decimal_places=2)
+    cantidad_unidades = models.PositiveIntegerField()
     sin_maestro = models.BooleanField(default=False, db_index=True)
     inactivo = models.BooleanField(default=False)
     referencia_snapshot = models.CharField(max_length=50)
