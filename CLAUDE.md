@@ -115,4 +115,4 @@ Key-value store managed in Django admin. Keys used by `generar_archivo.py`: `pun
 
 ### Corte suggestion heuristic
 
-`cortes/servicios/corte_por_hora.py`: returns `1` if current Bogotá time < 12:00, else `2`. Used as default in the upload form.
+`cortes/servicios/corte_por_hora.py`: returns `2` if current Bogotá time < 12:00, else `1`. Corte 2 = mañana, Corte 1 = tarde. Used as default in the upload form.
