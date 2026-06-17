@@ -100,20 +100,19 @@ class AdaptadorPlantilla(AdaptadorFormato):
 
         ws = wb["Hoja1"]
 
-        if ws.max_column is None:
-            wb.close()
-            raise ValueError(
-                "El archivo no contiene datos en 'Hoja1'. "
-                "Verifique que el archivo no esté vacío."
-            )
-
-        header_row = 5
+        # iter_rows funciona aunque max_column/max_row sean None (archivos sin <dimension>)
         encabezados_leidos = []
-        for col in range(1, ws.max_column + 1):
-            valor = ws.cell(row=header_row, column=col).value
-            encabezados_leidos.append(str(valor).strip() if valor else "")
+        for row in ws.iter_rows(min_row=5, max_row=5, values_only=True):
+            encabezados_leidos = [str(v).strip() if v is not None else "" for v in row]
+            break
 
         wb.close()
+
+        if not any(encabezados_leidos):
+            raise ValueError(
+                "El archivo no contiene datos en la fila 5 de 'Hoja1'. "
+                "Verifique que el archivo no esté vacío."
+            )
 
         faltantes = []
         for col_esperada in COLUMNAS_ESPERADAS:
@@ -132,16 +131,16 @@ class AdaptadorPlantilla(AdaptadorFormato):
         wb = load_workbook(ruta_archivo, read_only=True, data_only=True)
         ws = wb["Hoja1"]
 
-        if ws.max_column is None:
-            wb.close()
-            return []
-
-        # Leer fila 5 como encabezados y mapear índices de columna con búsqueda parcial
+        # Leer fila 5 como encabezados usando iter_rows (funciona sin <dimension>)
         header_row = 5
         encabezados_leidos = []
-        for col in range(1, ws.max_column + 1):
-            valor = ws.cell(row=header_row, column=col).value
-            encabezados_leidos.append(str(valor).strip() if valor else "")
+        for row in ws.iter_rows(min_row=header_row, max_row=header_row, values_only=True):
+            encabezados_leidos = [str(v).strip() if v is not None else "" for v in row]
+            break
+
+        if not encabezados_leidos:
+            wb.close()
+            return []
 
         col_idx: dict[str, int] = {}
         for esperada in COLUMNAS_ESPERADAS:
@@ -152,41 +151,29 @@ class AdaptadorPlantilla(AdaptadorFormato):
         # Agrupar líneas por documento
         documentos: dict[str, DocumentoInterno] = {}
 
-        for row in range(header_row + 1, ws.max_row + 1):
-            num_doc = _a_str(ws.cell(row=row, column=col_idx.get("NÚMERO DE DOCUMENTO", 0)).value)
+        def _celda(fila, nombre):
+            idx = col_idx.get(nombre, 0)
+            if not idx or idx > len(fila):
+                return None
+            return fila[idx - 1]
+
+        for fila in ws.iter_rows(min_row=header_row + 1, values_only=True):
+            num_doc = _a_str(_celda(fila, "NÚMERO DE DOCUMENTO"))
             if not num_doc or not num_doc.strip():
                 continue
 
-            tipo_comprobante = _a_str(
-                ws.cell(row=row, column=col_idx.get("TIPO DE COMPROBANTE", 0)).value
-            ).strip().upper()
-            codigo_comprobante = _a_str(
-                ws.cell(row=row, column=col_idx.get("CÓDIGO COMPROBANTE", 0)).value
-            ).strip()
-            cuenta_contable = _a_str(
-                ws.cell(row=row, column=col_idx.get("CUENTA CONTABLE", 0)).value
-            ).strip()
-            debito_credito = _a_str(
-                ws.cell(row=row, column=col_idx.get("DÉBITO O CRÉDITO", 0)).value
-            ).strip().upper()
-            linea_producto = _a_str(
-                ws.cell(row=row, column=col_idx.get("LÍNEA PRODUCTO", 0)).value
-            ).strip()
-            grupo_producto = _a_str(
-                ws.cell(row=row, column=col_idx.get("GRUPO PRODUCTO", 0)).value
-            ).strip()
-            codigo_producto = _a_str(
-                ws.cell(row=row, column=col_idx.get("CÓDIGO PRODUCTO", 0)).value
-            ).strip()
-            cantidad = ws.cell(row=row, column=col_idx.get("CANTIDAD", 0)).value
-            lote = _a_str(ws.cell(row=row, column=col_idx.get("LOTE", 0)).value)
-            nit = _a_str(ws.cell(row=row, column=col_idx.get("NIT", 0)).value).strip()
-            codigo_ciudad = _a_str(
-                ws.cell(row=row, column=col_idx.get("CÓDIGO DE LA CIUDAD", 0)).value
-            ).strip()
-            descripcion = _a_str(
-                ws.cell(row=row, column=col_idx.get("DESCRIPCIÓN DE LA SECUENCIA", 0)).value
-            ).strip()
+            tipo_comprobante = _a_str(_celda(fila, "TIPO DE COMPROBANTE")).strip().upper()
+            codigo_comprobante = _a_str(_celda(fila, "CÓDIGO COMPROBANTE")).strip()
+            cuenta_contable = _a_str(_celda(fila, "CUENTA CONTABLE")).strip()
+            debito_credito = _a_str(_celda(fila, "DÉBITO O CRÉDITO")).strip().upper()
+            linea_producto = _a_str(_celda(fila, "LÍNEA PRODUCTO")).strip()
+            grupo_producto = _a_str(_celda(fila, "GRUPO PRODUCTO")).strip()
+            codigo_producto = _a_str(_celda(fila, "CÓDIGO PRODUCTO")).strip()
+            cantidad = _celda(fila, "CANTIDAD")
+            lote = _a_str(_celda(fila, "LOTE"))
+            nit = _a_str(_celda(fila, "NIT")).strip()
+            codigo_ciudad = _a_str(_celda(fila, "CÓDIGO DE LA CIUDAD")).strip()
+            descripcion = _a_str(_celda(fila, "DESCRIPCIÓN DE LA SECUENCIA")).strip()
 
             # Criterios de filtro
             if tipo_comprobante not in CODIGOS_PERMITIDOS:
