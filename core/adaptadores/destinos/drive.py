@@ -12,6 +12,17 @@ MESES = [
     "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
 ]
 
+_service_cache: dict[str, object] = {}
+
+
+def _get_drive_service(sa_path: str):
+    if sa_path not in _service_cache:
+        creds = service_account.Credentials.from_service_account_file(
+            sa_path, scopes=["https://www.googleapis.com/auth/drive"]
+        )
+        _service_cache[sa_path] = build("drive", "v3", credentials=creds)
+    return _service_cache[sa_path]
+
 
 class AdaptadorDestinoDrive(AdaptadorDestino):
     codigo = "drive"
@@ -21,10 +32,7 @@ class AdaptadorDestinoDrive(AdaptadorDestino):
         sa_path = os.environ.get("DRIVE_SERVICE_ACCOUNT_JSON", "")
         self.root_id = os.environ.get("DRIVE_ROOT_FOLDER_ID", "")
         if sa_path and os.path.exists(sa_path):
-            creds = service_account.Credentials.from_service_account_file(
-                sa_path, scopes=["https://www.googleapis.com/auth/drive"]
-            )
-            self.service = build("drive", "v3", credentials=creds)
+            self.service = _get_drive_service(sa_path)
         else:
             self.service = None
 
@@ -40,14 +48,13 @@ class AdaptadorDestinoDrive(AdaptadorDestino):
         carpeta_mes_id = self._buscar_o_crear_carpeta(nombre_mes, self.root_id)
         carpeta_dia_id = self._buscar_o_crear_carpeta(nombre_dia, carpeta_mes_id)
 
-        media = MediaInMemoryUpload(
-            archivo_bytes,
-            mimetype="application/vnd.ms-excel",
-            resumable=False,
-        )
-
         for intento, espera in enumerate([1, 3, 10], start=1):
             try:
+                media = MediaInMemoryUpload(
+                    archivo_bytes,
+                    mimetype="application/vnd.ms-excel",
+                    resumable=False,
+                )
                 file_metadata = {
                     "name": nombre_archivo,
                     "parents": [carpeta_dia_id],
