@@ -52,27 +52,75 @@ class ListaCortesView(LoginRequiredMixin, ListView):
     context_object_name = "cortes"
     paginate_by = 20
 
+    def _params(self):
+        g = self.request.GET
+        return {
+            "q":       g.get("q", "").strip(),
+            "estado":  g.get("estado", "").strip(),
+            "usuario": g.get("usuario", "").strip(),
+            "desde":   g.get("desde", "").strip(),
+            "hasta":   g.get("hasta", "").strip(),
+        }
+
     def get_queryset(self):
-        hace_30_dias = timezone.localdate() - timedelta(days=30)
-        return super().get_queryset().filter(
-            fecha__gte=hace_30_dias,
-        ).annotate(
+        from django.db.models import Q
+        p = self._params()
+        hay_filtro = any(p.values())
+
+        qs = super().get_queryset().annotate(
             documentos_count=Count("documentos"),
         ).prefetch_related("documentos").order_by("-fecha", "numero_corte", "adicional_letra")
 
+        if not hay_filtro:
+            hace_30 = timezone.localdate() - timedelta(days=30)
+            return qs.filter(fecha__gte=hace_30)
+
+        if p["q"]:
+            qs = qs.filter(
+                Q(documentos__factura__icontains=p["q"]) |
+                Q(documentos__nit__icontains=p["q"])
+            ).distinct()
+        if p["estado"] and p["estado"] in dict(Corte.ESTADO_CHOICES):
+            qs = qs.filter(estado=p["estado"])
+        if p["usuario"] and p["usuario"].isdigit():
+            qs = qs.filter(usuario_carga_id=int(p["usuario"]))
+        if p["desde"]:
+            qs = qs.filter(fecha__gte=p["desde"])
+        if p["hasta"]:
+            qs = qs.filter(fecha__lte=p["hasta"])
+
+        return qs
+
     def get_context_data(self, **kwargs):
         from itertools import groupby
+        from django.contrib.auth import get_user_model
         ctx = super().get_context_data(**kwargs)
+        p = self._params()
+        hay_filtro = any(p.values())
+
         for corte in ctx["cortes"]:
             tipos = sorted({d.tipo_comprobante for d in corte.documentos.all() if d.tipo_comprobante})
             corte.tipos = "·".join(tipos) if tipos else "—"
+
         dias = []
         for fecha, fecha_iter in groupby(ctx["cortes"], key=lambda c: c.fecha):
             grupos = []
             for numero, corte_iter in groupby(list(fecha_iter), key=lambda c: c.numero_corte):
                 grupos.append(list(corte_iter))
             dias.append({"fecha": fecha, "grupos": grupos})
+
         ctx["dias"] = dias
+        ctx["filtros_activos"] = hay_filtro
+        ctx["params"] = p
+
+        if hay_filtro:
+            ctx["total_filtrado"] = self.get_queryset().count()
+
+        User = get_user_model()
+        ctx["usuarios_carga"] = User.objects.filter(
+            corte__isnull=False
+        ).distinct().order_by("username")
+
         return ctx
 
 
