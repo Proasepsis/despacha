@@ -46,6 +46,13 @@ class EsAlmacenamientoOAdminMixin(UserPassesTestMixin):
         return self.request.user.groups.filter(name__in=["almacenamiento", "admin"]).exists()
 
 
+class EsAdminMixin(UserPassesTestMixin):
+    raise_exception = True
+
+    def test_func(self):
+        return self.request.user.groups.filter(name="admin").exists()
+
+
 class ListaCortesView(LoginRequiredMixin, ListView):
     model = Corte
     template_name = "cortes/lista.html"
@@ -381,11 +388,8 @@ class DeshacerSplitView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
         return JsonResponse({"ok": True})
 
 
-class ForzarLiberacionView(LoginRequiredMixin, View):
+class ForzarLiberacionView(LoginRequiredMixin, EsAdminMixin, View):
     def post(self, request, pk):
-        if not request.user.groups.filter(name="admin").exists():
-            return HttpResponseForbidden("Solo admin puede forzar liberación")
-
         corte = get_object_or_404(Corte, pk=pk)
         liberar_bloqueo(corte, request.user, forzado_por_admin=True)
         return JsonResponse({"ok": True})
