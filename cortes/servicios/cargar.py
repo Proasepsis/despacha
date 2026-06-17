@@ -95,7 +95,6 @@ def cargar_archivo(
                 fecha=fecha_corte,
                 numero_corte=numero_corte,
                 adicional_letra=adicional_letra,
-                tipo_comprobante=tipo_comprobante.strip(),
                 estado="cargado",
             )
     except IntegrityError:

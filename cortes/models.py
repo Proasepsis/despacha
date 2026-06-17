@@ -22,7 +22,6 @@ class Corte(models.Model):
     fecha = models.DateField(db_index=True)
     numero_corte = models.PositiveSmallIntegerField(choices=CORTE_CHOICES)
     adicional_letra = models.CharField(max_length=1, blank=True, default="")
-    tipo_comprobante = models.CharField(max_length=80, blank=True, default="")
     estado = models.CharField(
         max_length=20, choices=ESTADO_CHOICES, default="cargado", db_index=True
     )
@@ -81,6 +80,7 @@ class Documento(models.Model):
     corte = models.ForeignKey(Corte, on_delete=models.CASCADE, related_name="documentos")
     factura = models.CharField(max_length=30)
     nit = models.CharField(max_length=20, blank=True)
+    tipo_comprobante = models.CharField(max_length=1, blank=True, default="")
     ciudad = models.ForeignKey(
         "productos.Ciudad",
         null=True,
