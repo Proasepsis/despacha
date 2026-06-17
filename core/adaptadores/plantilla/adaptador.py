@@ -235,6 +235,7 @@ class AdaptadorPlantilla(AdaptadorFormato):
                     factura=num_doc,
                     nit=nit,
                     codigo_ciudad=codigo_ciudad,
+                    tipo_comprobante=tipo_comprobante,
                 )
             documentos[num_doc].lineas.append(linea)
 

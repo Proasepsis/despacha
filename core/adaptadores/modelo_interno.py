@@ -15,4 +15,5 @@ class DocumentoInterno:
     factura: str
     nit: str = ""
     codigo_ciudad: str = ""
+    tipo_comprobante: str = ""
     lineas: list[LineaInterna] = field(default_factory=list)

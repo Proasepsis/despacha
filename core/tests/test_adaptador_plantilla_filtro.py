@@ -284,3 +284,31 @@ class AdaptadorPlantillaFiltroTest(TestCase):
         doc = documentos[0]
         self.assertEqual(doc.nit, "900123456")
         self.assertEqual(doc.codigo_ciudad, "11001")
+
+    def test_tipo_comprobante_se_propaga_al_documento(self):
+        filas = [
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc"],
+        ]
+        ruta = Path("/tmp/test_tipo_doc.xlsx")
+        _crear_excel_plantilla(ruta, filas)
+
+        documentos = self.adaptador.parse(ruta)
+        ruta.unlink(missing_ok=True)
+
+        self.assertEqual(documentos[0].tipo_comprobante, "F")
+
+    def test_tipo_comprobante_archivo_mixto(self):
+        """Dos documentos distintos con tipos distintos."""
+        filas = [
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc F"],
+            ["DOC002", "H", "5", "143505", "C", "150", "0005", "000005", "10", "L2", "900000", "11001", "Desc H"],
+        ]
+        ruta = Path("/tmp/test_tipo_mixto.xlsx")
+        _crear_excel_plantilla(ruta, filas)
+
+        documentos = self.adaptador.parse(ruta)
+        ruta.unlink(missing_ok=True)
+
+        tipos = {d.factura: d.tipo_comprobante for d in documentos}
+        self.assertEqual(tipos["DOC001"], "F")
+        self.assertEqual(tipos["DOC002"], "H")
