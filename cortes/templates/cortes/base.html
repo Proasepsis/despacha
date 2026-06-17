@@ -704,8 +704,15 @@
             <span class="nav-kbd">Alt+N</span>
         </a>
         {% endif %}
-        {% if user.groups.all.0.name == 'admin' %}
+        {% if 'admin' in grupos_usuario or 'consultar' in grupos_usuario %}
         <span class="nav-section">Sistema</span>
+        <a href="{% url 'admin_auditoria' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_auditoria' %}active{% endif %}">
+            <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M2 2h12v1H2V2zm0 3h12v1H2V5zm0 3h8v1H2V8zm0 3h5v1H2v-1z"/>
+            </svg>
+            Auditoría
+        </a>
+        {% if 'admin' in grupos_usuario %}
         <a href="{% url 'panel_config' %}" class="nav-link" data-kb="config">
             <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 5a3 3 0 100 6A3 3 0 008 5zM2.3 6.7l-.8-1.8L3 3.5l1.8.8A5 5 0 016.2 3.7L6.5 2h3l.3 1.7a5 5 0 011.4.6L13 3.5l1.5 1.4-.8 1.8A5 5 0 0114 8l.7 1.7-1.5 1.4-1.8-.8a5 5 0 01-1.4.6L9.5 13h-3l-.3-1.6a5 5 0 01-1.4-.6l-1.8.8L1.5 10.2l.8-1.7A5 5 0 012 8z"/>
@@ -723,6 +730,7 @@
             Maestros
             <span class="nav-kbd">Alt+C</span>
         </a>
+        {% endif %}
         {% endif %}
     </nav>
     <div class="sidebar-foot">

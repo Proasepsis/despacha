@@ -16,6 +16,13 @@ class EsAdminMixin(UserPassesTestMixin):
         return self.request.user.groups.filter(name="admin").exists()
 
 
+class EsAdminOConsultarMixin(UserPassesTestMixin):
+    raise_exception = True
+
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=["admin", "consultar"]).exists()
+
+
 class PanelConfigView(LoginRequiredMixin, EsAdminMixin, View):
     template_name = "core/config.html"
 
@@ -38,7 +45,7 @@ class PanelConfigView(LoginRequiredMixin, EsAdminMixin, View):
         })
 
 
-class AuditoriaListView(LoginRequiredMixin, EsAdminMixin, ListView):
+class AuditoriaListView(LoginRequiredMixin, EsAdminOConsultarMixin, ListView):
     model = Auditoria
     template_name = "core/auditoria.html"
     context_object_name = "registros"
