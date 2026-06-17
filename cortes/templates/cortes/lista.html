@@ -15,29 +15,45 @@
 
 <form method="get" id="filtros-form" class="filtros-panel{% if not filtros_activos %} filtros-oculto{% endif %}">
   <div class="filtros-bar">
-    <input type="search" name="q" value="{{ params.q }}"
-           placeholder="Factura o NIT…"
-           class="filtro-input filtro-q"
-           autocomplete="off">
-    <select name="estado" class="filtro-select">
-      <option value="">Todos los estados</option>
-      <option value="cargado"     {% if params.estado == "cargado" %}selected{% endif %}>Cargado</option>
-      <option value="en_revision" {% if params.estado == "en_revision" %}selected{% endif %}>En revisión</option>
-      <option value="generado"    {% if params.estado == "generado" %}selected{% endif %}>Generado</option>
-      <option value="con_error"   {% if params.estado == "con_error" %}selected{% endif %}>Con error</option>
-    </select>
-    <select name="usuario" class="filtro-select">
-      <option value="">Todos los usuarios</option>
-      {% for u in usuarios_carga %}
-      <option value="{{ u.pk }}" {% if params.usuario == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
-      {% endfor %}
-    </select>
-    <span class="filtro-label">Desde</span>
-    <input type="date" name="desde" value="{{ params.desde }}" class="filtro-date" title="Desde">
-    <span class="filtro-label">Hasta</span>
-    <input type="date" name="hasta" value="{{ params.hasta }}" class="filtro-date" title="Hasta">
+    <label class="filtro-col" style="flex:4;">
+      <span class="filtro-label">Buscar</span>
+      <input type="search" name="q" value="{{ params.q }}"
+             placeholder="Factura, número de documento o NIT…"
+             class="filtro-input"
+             autocomplete="off">
+    </label>
+    <label class="filtro-col" style="flex:2;">
+      <span class="filtro-label">Estado</span>
+      <select name="estado" class="filtro-input">
+        <option value="">Todos</option>
+        <option value="cargado"     {% if params.estado == "cargado" %}selected{% endif %}>Cargado</option>
+        <option value="en_revision" {% if params.estado == "en_revision" %}selected{% endif %}>En revisión</option>
+        <option value="generado"    {% if params.estado == "generado" %}selected{% endif %}>Generado</option>
+        <option value="con_error"   {% if params.estado == "con_error" %}selected{% endif %}>Con error</option>
+      </select>
+    </label>
+    <label class="filtro-col" style="flex:2;">
+      <span class="filtro-label">Usuario</span>
+      <select name="usuario" class="filtro-input">
+        <option value="">Todos</option>
+        {% for u in usuarios_carga %}
+        <option value="{{ u.pk }}" {% if params.usuario == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="filtro-col" style="flex:1;">
+      <span class="filtro-label">Desde</span>
+      <input type="date" name="desde" value="{{ params.desde }}" class="filtro-input">
+    </label>
+    <label class="filtro-col" style="flex:1;">
+      <span class="filtro-label">Hasta</span>
+      <input type="date" name="hasta" value="{{ params.hasta }}" class="filtro-input">
+    </label>
     {% if filtros_activos %}
-    <a href="{% url 'lista_cortes' %}" class="filtro-clear" title="Limpiar filtros">✕</a>
+    <div class="filtro-col" style="flex:none;justify-content:flex-end;">
+      <span class="filtro-label">&nbsp;</span>
+      <a href="{% url 'lista_cortes' %}" class="filtro-clear" title="Limpiar filtros">✕</a>
+    </div>
     {% endif %}
   </div>
 </form>
@@ -237,12 +253,25 @@
 .filtros-bar {
     display: flex;
     flex-wrap: nowrap;
-    gap: .4rem;
-    align-items: center;
+    gap: .5rem;
+    align-items: flex-end;
 }
-.filtro-input,
-.filtro-select,
-.filtro-date {
+.filtro-col {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    min-width: 0;
+}
+.filtro-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.filtro-input {
     font-family: var(--font-mono);
     font-size: 11px;
     background: var(--surface);
@@ -253,21 +282,9 @@
     outline: none;
     height: 28px;
     box-sizing: border-box;
+    width: 100%;
 }
-.filtro-input:focus,
-.filtro-select:focus,
-.filtro-date:focus {
-    border-color: var(--accent);
-}
-.filtro-q { flex: 2; min-width: 0; }
-.filtro-select { width: 125px; }
-.filtro-date { width: 100px; }
-.filtro-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-muted);
-    white-space: nowrap;
-}
+.filtro-input:focus { border-color: var(--accent); }
 .filtro-clear {
     font-size: 11px;
     color: var(--text-muted);
