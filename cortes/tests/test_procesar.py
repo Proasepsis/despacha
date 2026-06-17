@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 
 from productos.models import Producto
-from cortes.models import Corte, Linea
+from cortes.models import Corte, Documento, Linea
 from core.adaptadores.modelo_interno import DocumentoInterno, LineaInterna
 from cortes.servicios.procesar import procesar_documentos_internos
 
@@ -170,3 +170,23 @@ class ProcesarDocumentosTest(TestCase):
 
         resultado = procesar_documentos_internos(self.corte, [doc])
         self.assertEqual(resultado.lineas_sin_maestro, 1)
+
+    def test_tipo_comprobante_se_guarda_en_documento(self):
+        docs = [
+            DocumentoInterno(
+                factura="F001",
+                nit="800000001",
+                codigo_ciudad="",
+                tipo_comprobante="F",
+                lineas=[
+                    LineaInterna(
+                        producto_codigo="",
+                        lote_raw="",
+                        cantidad_origen=Decimal("10"),
+                    )
+                ],
+            )
+        ]
+        resultado = procesar_documentos_internos(self.corte, docs)
+        doc = Documento.objects.get(factura="F001", corte=self.corte)
+        self.assertEqual(doc.tipo_comprobante, "F")

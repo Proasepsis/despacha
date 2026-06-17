@@ -59,6 +59,7 @@ def procesar_documentos_internos(
             corte=corte,
             factura=doc_interno.factura,
             nit=doc_interno.nit[:20],
+            tipo_comprobante=doc_interno.tipo_comprobante,
             ciudad=ciudad,
         )
         documentos_a_crear.append(doc)
