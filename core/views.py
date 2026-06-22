@@ -116,9 +116,20 @@ class AuditoriaListView(LoginRequiredMixin, EsAdminOConsultarMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        from cortes.models import Auditoria as A
+        from cortes.models import Auditoria as A, Documento
         ctx["tipos_evento"] = A.EVENTO_CHOICES
         ctx["query_string"] = self.request.GET.urlencode()
+
+        page_records = ctx["registros"]
+        doc_ids = [r.objeto_id for r in page_records if r.objeto_tipo == "Documento"]
+        facturas_map = {}
+        if doc_ids:
+            facturas_map = {
+                str(pk): factura
+                for pk, factura in Documento.objects.filter(pk__in=doc_ids).values_list("pk", "factura")
+            }
+        for r in page_records:
+            r.display_id = facturas_map.get(r.objeto_id, r.objeto_id) if r.objeto_tipo == "Documento" else r.objeto_id
         return ctx
 
     def render_to_response(self, context, **response_kwargs):

@@ -71,7 +71,7 @@
                 <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-soft);white-space:nowrap;">{{ r.fecha|date:"Y-m-d H:i" }}</td>
                 <td style="font-size:13px;">{{ r.usuario.username|default:"—" }}</td>
                 <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-soft);">{{ r.objeto_tipo }}</td>
-                <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">{{ r.objeto_id }}</td>
+                <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">{{ r.display_id }}</td>
                 <td style="font-family:var(--font-mono);font-size:11px;">{{ r.campo }}</td>
                 <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);font-size:11px;">
                     {% if r.valor_anterior %}<span style="color:var(--danger);">{{ r.valor_anterior }}</span><span style="color:var(--text-muted);"> → </span>{% endif %}<span style="color:var(--success);">{{ r.valor_nuevo }}</span>
