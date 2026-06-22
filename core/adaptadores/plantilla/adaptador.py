@@ -176,6 +176,9 @@ class AdaptadorPlantilla(AdaptadorFormato):
             descripcion = _a_str(_celda(fila, "DESCRIPCIÓN DE LA SECUENCIA")).strip()
 
             # Criterios de filtro
+            if "TRASPORTE" in descripcion.upper():
+                continue
+
             if tipo_comprobante not in CODIGOS_PERMITIDOS:
                 continue
 
