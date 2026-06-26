@@ -304,8 +304,13 @@ function presenceColor(username) {
 
 function pingPresencia() {
     var base = '/cortes/' + CORTE_ID + '/presencia/';
-    fetch(base, { method: 'POST', headers: { 'X-CSRFToken': getCSRF() } });
-    fetch(base).then(function(r) { return r.json(); }).then(function(data) {
+    fetch(base, { method: 'POST', headers: { 'X-CSRFToken': getCSRF() } })
+        .then(function(r) { if (r.status === 401) location.reload(); });
+    fetch(base).then(function(r) {
+        if (r.status === 401) { location.reload(); return null; }
+        return r.json();
+    }).then(function(data) {
+        if (!data) return;
         var wrap = document.getElementById('presencia-chips');
         if (!wrap) return;
         wrap.innerHTML = '';

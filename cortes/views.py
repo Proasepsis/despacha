@@ -454,6 +454,9 @@ class GenerarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
 
 
 class PresenciaPingView(LoginRequiredMixin, View):
+    def handle_no_permission(self):
+        return JsonResponse({"ok": False, "sesion_expirada": True}, status=401)
+
     def post(self, request, pk):
         corte = get_object_or_404(Corte, pk=pk)
         PresenciaCorte.objects.update_or_create(
