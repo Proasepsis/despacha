@@ -39,60 +39,60 @@
 {% for doc in documentos_data %}
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.75rem;overflow:hidden;">
 
-    <div data-doc-header data-doc-id="{{ doc.id }}" style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:var(--surface-raised);border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;gap:1rem;">
-            <span style="font-family:var(--font-mono);font-weight:500;font-size:13px;color:var(--text);">{{ doc.factura }}</span>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">NIT {{ doc.nit }}{% if doc.cliente_nombre %} — {{ doc.cliente_nombre }}{% endif %}{% if doc.sucursal %} · Suc {{ doc.sucursal }}{% endif %}</span>
+    <div data-doc-header data-doc-id="{{ doc.id }}" style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;background:var(--surface-raised);border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <span style="font-family:var(--font-mono);font-weight:500;font-size:13px;color:var(--text);min-width:5rem;">{{ doc.factura }}</span>
             {% if doc.tipo_comprobante %}
-            <span style="background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:.1rem .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.tipo_comprobante }}</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;height:24px;min-width:24px;background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:0 .45rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.tipo_comprobante }}</span>
             {% endif %}
-            <span style="background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:.1rem .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.lineas|length }} líneas</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;height:24px;background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:0 .45rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);white-space:nowrap;">{{ doc.lineas|length }} líneas</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">NIT {{ doc.nit }}{% if doc.cliente_nombre %} — {{ doc.cliente_nombre }}{% endif %}{% if doc.sucursal %} · Suc {{ doc.sucursal }}{% endif %}</span>
         </div>
 
-        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
             {% if es_editor %}
-            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;">
+            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:.2rem;height:28px;">
                 EMB
                 <select id="clas1-{{ doc.id }}" data-parent-doc-id="{{ doc.id }}" onchange="autosave('documento', {{ doc.id }}, 'clasificador1', this.value)"
-                        style="font-size:11px;padding:.15rem .3rem;background:var(--surface);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);font-family:var(--font-mono);">
+                        style="height:28px;font-size:11px;padding:0 .25rem;background:var(--surface);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);font-family:var(--font-mono);">
                     {% for op in clasificador1_opciones %}
                     <option value="{{ op }}" {% if doc.clasificador1 == op %}selected{% endif %}>{{ op }}</option>
                     {% endfor %}
                 </select>
             </label>
-            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;">
+            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:.2rem;height:28px;">
                 PRIO
                 <select id="obs-{{ doc.id }}" data-parent-doc-id="{{ doc.id }}" onchange="autosave('documento', {{ doc.id }}, 'observaciones', this.value)"
-                        style="font-size:11px;padding:.15rem .3rem;background:var(--surface);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);font-family:var(--font-mono);">
+                        style="height:28px;font-size:11px;padding:0 .25rem;background:var(--surface);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);font-family:var(--font-mono);">
                     {% for op in prioridad_opciones %}
                     <option value="{{ op }}" {% if doc.observaciones == op %}selected{% endif %}>{{ op }}</option>
                     {% endfor %}
                 </select>
             </label>
-            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;">
+            <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:.2rem;height:28px;white-space:nowrap;">
                 <input type="checkbox" id="nov-{{ doc.id }}"
                        data-parent-doc-id="{{ doc.id }}"
                        {% if doc.subsanar_novedad %}checked{% endif %}
                        onchange="toggleNovedad({{ doc.id }}, this.checked)"
-                       style="width:auto;">
-                Subsanar novedad
+                       style="width:auto;margin:0;">
+                Novedad
             </label>
             <div id="sufijo-wrap-{{ doc.id }}"
-                 style="display:{% if doc.subsanar_novedad %}flex{% else %}none{% endif %};align-items:center;gap:.3rem;">
-                <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-soft);">{{ doc.factura }}</span>
+                 style="display:{% if doc.subsanar_novedad %}inline-flex{% else %}none{% endif %};align-items:center;gap:.3rem;height:28px;">
+                <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.factura }}</span>
                 <input type="text" maxlength="10"
                        id="sufijo-{{ doc.id }}"
                        data-parent-doc-id="{{ doc.id }}"
                        value="{{ doc.factura_sufijo }}"
                        placeholder="A"
                        onchange="autosave('documento', {{ doc.id }}, 'factura_sufijo', this.value)"
-                       style="width:60px;font-size:12px;font-family:var(--font-mono);padding:.2rem .4rem;background:var(--surface-raised);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);">
+                       style="width:48px;height:28px;font-size:11px;font-family:var(--font-mono);padding:0 .3rem;background:var(--surface-raised);border:1px solid var(--border-mid);border-radius:4px;color:var(--text);">
             </div>
-            <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="font-size:11px;padding:.2rem .6rem;">Ver líneas</button>
+            <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="height:28px;font-size:11px;padding:0 .6rem;">Ver líneas</button>
             {% else %}
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">EMB {{ doc.clasificador1 }}</span>
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">PRIO {{ doc.observaciones }}</span>
-            <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="font-size:11px;padding:.2rem .6rem;">Ver líneas</button>
+            <span style="display:inline-flex;align-items:center;height:28px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">EMB {{ doc.clasificador1 }}</span>
+            <span style="display:inline-flex;align-items:center;height:28px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">PRIO {{ doc.observaciones }}</span>
+            <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="height:28px;font-size:11px;padding:0 .6rem;">Ver líneas</button>
             {% endif %}
         </div>
     </div>
