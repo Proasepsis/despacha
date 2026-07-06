@@ -20,6 +20,7 @@ ENCABEZADOS = [
     "NIT",
     "CÓDIGO DE LA CIUDAD",
     "DESCRIPCIÓN DE LA SECUENCIA",
+    "SUCURSAL",
 ]
 
 
@@ -33,7 +34,7 @@ class LecturaLoteStringTest(SimpleTestCase):
             ws.cell(row=5, column=col, value=encabezado)
 
         fila = ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10",
-                "120010925.", "800000", "11001", "Desc"]
+                "120010925.", "800000", "11001", "Desc", ""]
         for j, valor in enumerate(fila, start=1):
             ws.cell(row=6, column=j, value=valor)
 
@@ -57,7 +58,7 @@ class LecturaLoteStringTest(SimpleTestCase):
             ws.cell(row=5, column=col, value=encabezado)
 
         fila = ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10",
-                "'15F22/2579", "800000", "11001", "Desc"]
+                "'15F22/2579", "800000", "11001", "Desc", ""]
         for j, valor in enumerate(fila, start=1):
             ws.cell(row=6, column=j, value=valor)
 
@@ -80,7 +81,7 @@ class LecturaLoteStringTest(SimpleTestCase):
             ws.cell(row=5, column=col, value=encabezado)
 
         fila = ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10",
-                "1 5L 23", "800000", "11001", "Desc"]
+                "1 5L 23", "800000", "11001", "Desc", ""]
         for j, valor in enumerate(fila, start=1):
             ws.cell(row=6, column=j, value=valor)
 

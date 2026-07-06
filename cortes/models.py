@@ -81,6 +81,13 @@ class Documento(models.Model):
     factura = models.CharField(max_length=30)
     nit = models.CharField(max_length=20, blank=True)
     tipo_comprobante = models.CharField(max_length=1, blank=True, default="")
+    sucursal = models.CharField(max_length=20, blank=True)
+    cliente = models.ForeignKey(
+        "clientes.Cliente",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     ciudad = models.ForeignKey(
         "productos.Ciudad",
         null=True,

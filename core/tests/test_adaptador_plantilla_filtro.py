@@ -22,6 +22,7 @@ ENCABEZADOS = [
     "NIT",
     "CÓDIGO DE LA CIUDAD",
     "DESCRIPCIÓN DE LA SECUENCIA",
+    "SUCURSAL",
 ]
 
 
@@ -82,25 +83,25 @@ class AdaptadorPlantillaFiltroTest(TestCase):
     def test_filtro_criterios(self):
         filas = [
             # Fila válida: F+1+14xx+C
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "15F22", "800000", "11001", "Desc A"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "15F22", "800000", "11001", "Desc A", ""],
             # Fila válida: H+5+14xx+C
-            ["DOC002", "H", "5", "143510", "C", "151", "0010", "000010", "5", "15G33", "800001", "11001", "Desc B"],
+            ["DOC002", "H", "5", "143510", "C", "151", "0010", "000010", "5", "15G33", "800001", "11001", "Desc B", ""],
             # Fila válida: S+1+14xx+C
-            ["DOC003", "S", "1", "143515", "C", "152", "0015", "000015", "3", "15H44", "800002", "11001", "Desc C"],
+            ["DOC003", "S", "1", "143515", "C", "152", "0015", "000015", "3", "15H44", "800002", "11001", "Desc C", ""],
             # Fila válida: T+10+14xx+C
-            ["DOC004", "T", "10", "143520", "C", "153", "0020", "000020", "7", "15I55", "800003", "11001", "Desc D"],
+            ["DOC004", "T", "10", "143520", "C", "153", "0020", "000020", "7", "15I55", "800003", "11001", "Desc D", ""],
             # Fila inválida: tipo Z no permitido
-            ["DOC005", "Z", "1", "143525", "C", "154", "0025", "000025", "2", "15J66", "800004", "11001", "Desc E"],
+            ["DOC005", "Z", "1", "143525", "C", "154", "0025", "000025", "2", "15J66", "800004", "11001", "Desc E", ""],
             # Fila inválida: F pero código no es 1
-            ["DOC006", "F", "5", "143530", "C", "155", "0030", "000030", "4", "15K77", "800005", "11001", "Desc F"],
+            ["DOC006", "F", "5", "143530", "C", "155", "0030", "000030", "4", "15K77", "800005", "11001", "Desc F", ""],
             # Fila inválida: cuenta no empieza por 14
-            ["DOC007", "F", "1", "413535", "C", "156", "0035", "000035", "1", "15L88", "800006", "11001", "Desc G"],
+            ["DOC007", "F", "1", "413535", "C", "156", "0035", "000035", "1", "15L88", "800006", "11001", "Desc G", ""],
             # Fila inválida: débito en vez de crédito
-            ["DOC008", "F", "1", "143540", "D", "157", "0040", "000040", "6", "15M99", "800007", "11001", "Desc H"],
+            ["DOC008", "F", "1", "143540", "D", "157", "0040", "000040", "6", "15M99", "800007", "11001", "Desc H", ""],
             # Fila válida: S+1+14xx+C
-            ["DOC009", "S", "1", "143545", "C", "158", "0045", "000045", "8", "15N00", "800008", "11001", "Desc I"],
+            ["DOC009", "S", "1", "143545", "C", "158", "0045", "000045", "8", "15N00", "800008", "11001", "Desc I", ""],
             # Fila inválida: H pero código no es 5
-            ["DOC010", "H", "1", "143550", "C", "159", "0050", "000050", "9", "2A3B4C", "800009", "11001", "Desc J"],
+            ["DOC010", "H", "1", "143550", "C", "159", "0050", "000050", "9", "2A3B4C", "800009", "11001", "Desc J", ""],
         ]
 
         ruta = Path("/tmp/test_filtro_criterios.xlsx")
@@ -119,11 +120,11 @@ class AdaptadorPlantillaFiltroTest(TestCase):
     def test_t10_acepta_debito_y_credito(self):
         filas = [
             # T+10 con C: debe incluirse
-            ["DOC001", "T", "10", "143505", "C", "150", "0005", "000005", "8", "L1", "800000", "11001", "Desc 1"],
+            ["DOC001", "T", "10", "143505", "C", "150", "0005", "000005", "8", "L1", "800000", "11001", "Desc 1", ""],
             # T+10 con D: también debe incluirse (traslado)
-            ["DOC002", "T", "10", "143510", "D", "150", "0005", "000005", "3", "L2", "800001", "11001", "Desc 2"],
+            ["DOC002", "T", "10", "143510", "D", "150", "0005", "000005", "3", "L2", "800001", "11001", "Desc 2", ""],
             # F+1 con D: debe excluirse (solo T+10 exime el filtro D/C)
-            ["DOC003", "F", "1", "143515", "D", "150", "0005", "000005", "5", "L3", "800002", "11001", "Desc 3"],
+            ["DOC003", "F", "1", "143515", "D", "150", "0005", "000005", "5", "L3", "800002", "11001", "Desc 3", ""],
         ]
 
         ruta = Path("/tmp/test_t10_debito.xlsx")
@@ -137,10 +138,10 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_agrupacion_por_documento(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc 1"],
-            ["DOC001", "F", "1", "143510", "C", "151", "0006", "000006", "5", "L2", "800000", "11001", "Desc 2"],
-            ["DOC001", "F", "1", "143515", "C", "152", "0007", "000007", "3", "L3", "800000", "11001", "Desc 3"],
-            ["DOC001", "F", "1", "413520", "D", "153", "0008", "000008", "2", "L4", "800000", "11001", "Desc 4"],  # inválida
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc 1", ""],
+            ["DOC001", "F", "1", "143510", "C", "151", "0006", "000006", "5", "L2", "800000", "11001", "Desc 2", ""],
+            ["DOC001", "F", "1", "143515", "C", "152", "0007", "000007", "3", "L3", "800000", "11001", "Desc 3", ""],
+            ["DOC001", "F", "1", "413520", "D", "153", "0008", "000008", "2", "L4", "800000", "11001", "Desc 4", ""],  # inválida
         ]
 
         ruta = Path("/tmp/test_agrupacion.xlsx")
@@ -156,7 +157,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_preservacion_lote_string(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "120010925.", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "120010925.", "800000", "11001", "Desc", ""],
         ]
 
         ruta = Path("/tmp/test_lote_string.xlsx")
@@ -170,7 +171,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_lote_sin_punto_no_se_agrega(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "120010925", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "120010925", "800000", "11001", "Desc", ""],
         ]
 
         ruta = Path("/tmp/test_lote_sin_punto.xlsx")
@@ -184,7 +185,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_lote_con_comilla_se_preserva(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "'121570226", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "'121570226", "800000", "11001", "Desc", ""],
         ]
 
         ruta = Path("/tmp/test_lote_comilla.xlsx")
@@ -198,7 +199,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_cantidad_decimal(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "7.5", "L1", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "7.5", "L1", "800000", "11001", "Desc", ""],
         ]
 
         ruta = Path("/tmp/test_cantidad.xlsx")
@@ -212,7 +213,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_producto_codigo_armado(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc", ""],
         ]
 
         ruta = Path("/tmp/test_codigo_armado.xlsx")
@@ -250,7 +251,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
     def test_producto_codigo_con_celdas_float(self):
         """Celdas numéricas devueltas como float por openpyxl deben producir el código correcto."""
         filas = [
-            ["DOC001", "F", "1", "143505", "C", 150.0, 5.0, 5.0, 10, "L1", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", 150.0, 5.0, 5.0, 10, "L1", "800000", "11001", "Desc", ""],
         ]
         ruta = Path("/tmp/test_codigo_float.xlsx")
         _crear_excel_plantilla(ruta, filas)
@@ -271,8 +272,8 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_nit_y_ciudad_se_propagan(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "900123456", "11001", "Desc 1"],
-            ["DOC001", "F", "1", "143510", "C", "151", "0006", "000006", "5", "L2", "900123456", "11001", "Desc 2"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "900123456", "11001", "Desc 1", ""],
+            ["DOC001", "F", "1", "143510", "C", "151", "0006", "000006", "5", "L2", "900123456", "11001", "Desc 2", ""],
         ]
 
         ruta = Path("/tmp/test_nit_ciudad.xlsx")
@@ -287,7 +288,7 @@ class AdaptadorPlantillaFiltroTest(TestCase):
 
     def test_tipo_comprobante_se_propaga_al_documento(self):
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc", ""],
         ]
         ruta = Path("/tmp/test_tipo_doc.xlsx")
         _crear_excel_plantilla(ruta, filas)
@@ -300,8 +301,8 @@ class AdaptadorPlantillaFiltroTest(TestCase):
     def test_tipo_comprobante_archivo_mixto(self):
         """Dos documentos distintos con tipos distintos."""
         filas = [
-            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc F"],
-            ["DOC002", "H", "5", "143505", "C", "150", "0005", "000005", "10", "L2", "900000", "11001", "Desc H"],
+            ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc F", ""],
+            ["DOC002", "H", "5", "143505", "C", "150", "0005", "000005", "10", "L2", "900000", "11001", "Desc H", ""],
         ]
         ruta = Path("/tmp/test_tipo_mixto.xlsx")
         _crear_excel_plantilla(ruta, filas)

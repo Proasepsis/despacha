@@ -225,6 +225,8 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                 "id": doc.id,
                 "factura": doc.factura,
                 "nit": doc.nit,
+                "cliente_nombre": doc.cliente.nombre if doc.cliente_id else "",
+                "sucursal": doc.sucursal,
                 "tipo_comprobante": doc.tipo_comprobante,
                 "clasificador1": doc.clasificador1,
                 "observaciones": doc.observaciones,

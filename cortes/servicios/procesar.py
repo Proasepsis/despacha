@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field
+import re
 from typing import Optional
 
 from django.db import transaction
 
 from productos.models import Producto, Ciudad
+from clientes.models import Cliente
 from cortes.models import Corte, Documento, Linea
 from core.adaptadores.modelo_interno import DocumentoInterno, LineaInterna
 from core.adaptadores.plantilla.limpieza import limpiar_lote
@@ -17,6 +19,10 @@ class ResultadoProcesamiento:
     lineas_sin_maestro: int = 0
     lineas_inactivas: int = 0
     productos_nuevos_detectados: list[str] = field(default_factory=list)
+
+
+def _normalizar_nit(nit: str) -> str:
+    return re.sub(r"[.\-\s]", "", nit.strip())
 
 
 @transaction.atomic
@@ -60,12 +66,30 @@ def procesar_documentos_internos(
             factura=doc_interno.factura,
             nit=doc_interno.nit[:20],
             tipo_comprobante=doc_interno.tipo_comprobante,
+            sucursal=doc_interno.sucursal[:20],
             ciudad=ciudad,
         )
         documentos_a_crear.append(doc)
         documento_map[(corte.id, doc_interno.factura)] = doc
 
     Documento.objects.bulk_create(documentos_a_crear)
+
+    nits_limpios = set()
+    for d in documentos_a_crear:
+        nit_clean = _normalizar_nit(d.nit)
+        if nit_clean:
+            nits_limpios.add(nit_clean)
+
+    if nits_limpios:
+        clientes_map = {c.nit: c for c in Cliente.objects.filter(nit__in=nits_limpios)}
+        docs_a_actualizar = []
+        for d in documentos_a_crear:
+            nit_clean = _normalizar_nit(d.nit)
+            if nit_clean in clientes_map:
+                d.cliente = clientes_map[nit_clean]
+                docs_a_actualizar.append(d)
+        if docs_a_actualizar:
+            Documento.objects.bulk_update(docs_a_actualizar, ["cliente"])
 
     for doc_interno in documentos:
         doc = documento_map[(corte.id, doc_interno.factura)]

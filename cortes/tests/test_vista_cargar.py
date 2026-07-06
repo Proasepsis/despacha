@@ -24,6 +24,7 @@ ENCABEZADOS = [
     "NIT",
     "CÓDIGO DE LA CIUDAD",
     "DESCRIPCIÓN DE LA SECUENCIA",
+    "SUCURSAL",
 ]
 
 
@@ -34,7 +35,7 @@ def _crear_excel_valido(ruta: Path, factura="DOC001") -> None:
     for col, encabezado in enumerate(ENCABEZADOS, start=1):
         ws.cell(row=5, column=col, value=encabezado)
     fila = [factura, "F", "1", "143505", "C", "150", "0005", "000005",
-            "10", "15F22", "800000", "11001", "Desc"]
+            "10", "15F22", "800000", "11001", "Desc", ""]
     for j, valor in enumerate(fila, start=1):
         ws.cell(row=6, column=j, value=valor)
     wb.save(ruta)

@@ -49,6 +49,8 @@ def partir_documento(
         factura=nueva_factura,
         nit=documento_origen.nit,
         tipo_comprobante=documento_origen.tipo_comprobante,
+        sucursal=documento_origen.sucursal,
+        cliente=documento_origen.cliente,
         ciudad=documento_origen.ciudad,
         clasificador1=documento_origen.clasificador1,
         observaciones=documento_origen.observaciones,

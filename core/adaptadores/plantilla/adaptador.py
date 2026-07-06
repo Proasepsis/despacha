@@ -21,6 +21,7 @@ COLUMNAS_ESPERADAS = [
     "NIT",
     "CÓDIGO DE LA CIUDAD",
     "DESCRIPCIÓN DE LA SECUENCIA",
+    "SUCURSAL",
 ]
 
 CODIGOS_PERMITIDOS = {"F": 1, "H": 5, "S": 1, "T": 10}
@@ -174,6 +175,7 @@ class AdaptadorPlantilla(AdaptadorFormato):
             nit = _a_str(_celda(fila, "NIT")).strip()
             codigo_ciudad = _a_str(_celda(fila, "CÓDIGO DE LA CIUDAD")).strip()
             descripcion = _a_str(_celda(fila, "DESCRIPCIÓN DE LA SECUENCIA")).strip()
+            sucursal = _a_str(_celda(fila, "SUCURSAL")).strip()
 
             # Criterios de filtro
             if "TRANSPORTE" in descripcion.upper():
@@ -226,6 +228,7 @@ class AdaptadorPlantilla(AdaptadorFormato):
                     nit=nit,
                     codigo_ciudad=codigo_ciudad,
                     tipo_comprobante=tipo_comprobante,
+                    sucursal=sucursal,
                 )
             documentos[num_doc].lineas.append(linea)
 
