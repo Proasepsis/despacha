@@ -113,7 +113,18 @@
                 <tr>
                     <td style="font-family:var(--font-mono);font-size:12px;">{{ linea.referencia }}</td>
                     <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="{{ linea.descripcion }}">{{ linea.descripcion }}</td>
-                    <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);">{{ linea.lote }}</td>
+                    <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);">
+                        {{ linea.lote }}
+                        {% if es_editor and linea.tiene_punto_final %}
+                        <label style="display:inline-flex;align-items:center;gap:.2rem;font-size:10px;color:var(--text-muted);margin-left:.4rem;">
+                            <input type="checkbox"
+                                   {% if linea.punto_incluido %}checked{% endif %}
+                                   onchange="autosave('linea', {{ linea.id }}, 'punto_incluido', this.checked ? 'true' : 'false')"
+                                   style="width:auto;margin:0;">
+                            punto
+                        </label>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if es_editor %}
                         <input type="number" step="1" min="1" value="{{ linea.cantidad_unidades }}"

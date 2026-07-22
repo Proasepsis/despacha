@@ -220,6 +220,8 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                     "cantidad_unidades": str(linea.cantidad_unidades),
                     "sin_maestro": linea.sin_maestro,
                     "inactivo": linea.inactivo,
+                    "tiene_punto_final": linea.tiene_punto_final,
+                    "punto_incluido": linea.punto_incluido,
                 })
             docs_data.append({
                 "id": doc.id,

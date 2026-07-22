@@ -288,6 +288,37 @@ class VistaRevisionTest(TestCase):
         self.assertFalse(self.doc.subsanar_novedad)
         self.assertEqual(self.doc.factura_sufijo, "")
 
+    def test_detalle_muestra_toggle_cuando_lote_tiene_punto(self):
+        linea_con_punto = Linea.objects.create(
+            documento=self.doc,
+            referencia="REF3",
+            lote="99001.",
+            cantidad_origen=1,
+            cantidad_unidades=4,
+            referencia_snapshot="REF3",
+            descripcion_snapshot="DESC3",
+            unidad_empaque_snapshot=1,
+        )
+        self.client.login(username="alm1", password="test")
+
+        response = self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
+
+        self.assertContains(
+            response,
+            f"autosave('linea', {linea_con_punto.pk}, 'punto_incluido'",
+        )
+
+    def test_detalle_no_muestra_toggle_cuando_lote_sin_punto(self):
+        # self.linea tiene lote="15F22", sin punto final
+        self.client.login(username="alm1", password="test")
+
+        response = self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
+
+        self.assertNotContains(
+            response,
+            f"autosave('linea', {self.linea.pk}, 'punto_incluido'",
+        )
+
 
 class SplitDocumentoTest(TestCase):
     def setUp(self):
