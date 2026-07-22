@@ -140,6 +140,31 @@ class VistaRevisionTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_autosave_punto_incluido(self):
+        self.client.login(username="alm1", password="test")
+
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({
+                "tipo": "linea",
+                "id": self.linea.pk,
+                "campo": "punto_incluido",
+                "valor": "true",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+
+        self.linea.refresh_from_db()
+        self.assertTrue(self.linea.punto_incluido)
+
+        auditoria = Auditoria.objects.filter(objeto_tipo="Linea", campo="punto_incluido").first()
+        self.assertIsNotNone(auditoria)
+        self.assertEqual(auditoria.valor_nuevo, "True")
+        self.assertEqual(auditoria.tipo_evento, "edicion")
+
     def test_facturacion_no_puede_editar(self):
         self.client.login(username="fac1", password="test")
         response = self.client.post(

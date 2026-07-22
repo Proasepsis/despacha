@@ -302,27 +302,34 @@ class EditarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
 
                 elif tipo == "linea":
                     linea = get_object_or_404(Linea, pk=obj_id, documento__corte=corte)
-                    if campo != "cantidad_unidades":
+                    if campo not in ("cantidad_unidades", "punto_incluido"):
                         return HttpResponseBadRequest(f"Campo no editable: {campo}")
 
-                    try:
-                        entero = round(float(str(valor)))
-                        if entero <= 0:
-                            return HttpResponseBadRequest("La cantidad debe ser positiva")
-                    except (TypeError, ValueError):
-                        return HttpResponseBadRequest("Cantidad inválida")
+                    if campo == "cantidad_unidades":
+                        try:
+                            entero = round(float(str(valor)))
+                            if entero <= 0:
+                                return HttpResponseBadRequest("La cantidad debe ser positiva")
+                        except (TypeError, ValueError):
+                            return HttpResponseBadRequest("Cantidad inválida")
 
-                    valor_anterior = linea.cantidad_unidades
-                    linea.cantidad_unidades = entero
-                    linea.save(update_fields=["cantidad_unidades"])
+                        valor_anterior = linea.cantidad_unidades
+                        linea.cantidad_unidades = entero
+                        linea.save(update_fields=["cantidad_unidades"])
+                        valor_nuevo = entero
+                    else:
+                        valor_anterior = linea.punto_incluido
+                        linea.punto_incluido = valor == "true"
+                        linea.save(update_fields=["punto_incluido"])
+                        valor_nuevo = linea.punto_incluido
 
                     registrar_auditoria(
                         usuario=request.user,
                         objeto_tipo="Linea",
                         objeto_id=str(linea.pk),
-                        campo="cantidad_unidades",
+                        campo=campo,
                         valor_anterior=str(valor_anterior),
-                        valor_nuevo=str(entero),
+                        valor_nuevo=str(valor_nuevo),
                         tipo_evento="edicion",
                     )
 
