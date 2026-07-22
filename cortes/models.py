@@ -131,9 +131,14 @@ class Linea(models.Model):
         on_delete=models.SET_NULL,
         related_name="lineas_movidas_a_otros",
     )
+    punto_incluido = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["id"]
+
+    @property
+    def tiene_punto_final(self) -> bool:
+        return self.lote.endswith(".")
 
 
 class Auditoria(models.Model):
