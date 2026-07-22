@@ -125,6 +125,58 @@ class GenerarArchivoTest(TestCase):
 
         ruta.unlink(missing_ok=True)
 
+    def test_lote_con_punto_final_se_quita_por_defecto(self):
+        Linea.objects.create(
+            documento=self.doc,
+            referencia="REF3",
+            lote="99001.",
+            punto_incluido=False,
+            cantidad_origen=Decimal("1"),
+            cantidad_unidades=Decimal("4"),
+            referencia_snapshot="REF3",
+            descripcion_snapshot="PRODUCTO CON PUNTO",
+            unidad_empaque_snapshot=1,
+        )
+
+        xls_bytes = generar_xls(self.corte)
+        ruta = Path("/tmp/test_gen_punto_off.xls")
+        ruta.write_bytes(xls_bytes)
+
+        wb = xlrd.open_workbook(str(ruta))
+        ws = wb.sheet_by_name("BOGOTA")
+        col_map = {ws.cell_value(0, c): c for c in range(31)}
+        col_map_articulo = {ws.cell_value(r, col_map["articulo"]): r for r in range(1, ws.nrows)}
+        fila = col_map_articulo["REF3"]
+
+        self.assertEqual(ws.cell_value(fila, col_map["lote"]), "99001")
+        ruta.unlink(missing_ok=True)
+
+    def test_lote_con_punto_final_se_mantiene_si_punto_incluido(self):
+        Linea.objects.create(
+            documento=self.doc,
+            referencia="REF4",
+            lote="99002.",
+            punto_incluido=True,
+            cantidad_origen=Decimal("1"),
+            cantidad_unidades=Decimal("4"),
+            referencia_snapshot="REF4",
+            descripcion_snapshot="PRODUCTO CON PUNTO INCLUIDO",
+            unidad_empaque_snapshot=1,
+        )
+
+        xls_bytes = generar_xls(self.corte)
+        ruta = Path("/tmp/test_gen_punto_on.xls")
+        ruta.write_bytes(xls_bytes)
+
+        wb = xlrd.open_workbook(str(ruta))
+        ws = wb.sheet_by_name("BOGOTA")
+        col_map = {ws.cell_value(0, c): c for c in range(31)}
+        col_map_articulo = {ws.cell_value(r, col_map["articulo"]): r for r in range(1, ws.nrows)}
+        fila = col_map_articulo["REF4"]
+
+        self.assertEqual(ws.cell_value(fila, col_map["lote"]), "99002.")
+        ruta.unlink(missing_ok=True)
+
     def test_nombrado_sin_version(self):
         nombre = nombre_archivo_corte(self.corte, siguiente_version=1)
         self.assertEqual(nombre, "MAY 5 corte 1.xls")

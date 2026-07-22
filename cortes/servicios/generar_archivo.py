@@ -78,7 +78,11 @@ def generar_xls(corte: Corte) -> bytes:
                 "clasificador2": factura_completa,
                 "observaciones": doc.observaciones,
                 "articulo": linea.referencia_snapshot,
-                "lote": linea.lote,
+                "lote": (
+                    linea.lote[:-1]
+                    if linea.tiene_punto_final and not linea.punto_incluido
+                    else linea.lote
+                ),
                 "estado_articulo": params.get("estado_articulo", ""),
                 "sscc": "",
                 "sscc_completo": "",
