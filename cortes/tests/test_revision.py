@@ -165,6 +165,34 @@ class VistaRevisionTest(TestCase):
         self.assertEqual(auditoria.valor_nuevo, "True")
         self.assertEqual(auditoria.tipo_evento, "edicion")
 
+    def test_autosave_punto_incluido_false(self):
+        self.linea.punto_incluido = True
+        self.linea.save()
+        self.client.login(username="alm1", password="test")
+
+        response = self.client.post(
+            reverse("editar_corte", args=[self.corte.pk]),
+            json.dumps({
+                "tipo": "linea",
+                "id": self.linea.pk,
+                "campo": "punto_incluido",
+                "valor": "false",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+
+        self.linea.refresh_from_db()
+        self.assertFalse(self.linea.punto_incluido)
+
+        auditoria = Auditoria.objects.filter(
+            objeto_tipo="Linea", campo="punto_incluido"
+        ).order_by("-id").first()
+        self.assertIsNotNone(auditoria)
+        self.assertEqual(auditoria.valor_nuevo, "False")
+
     def test_facturacion_no_puede_editar(self):
         self.client.login(username="fac1", password="test")
         response = self.client.post(
@@ -317,6 +345,26 @@ class VistaRevisionTest(TestCase):
         self.assertNotContains(
             response,
             f"autosave('linea', {self.linea.pk}, 'punto_incluido'",
+        )
+
+    def test_detalle_no_muestra_toggle_para_no_editor_aunque_lote_tenga_punto(self):
+        linea_con_punto = Linea.objects.create(
+            documento=self.doc,
+            referencia="REF3",
+            lote="99001.",
+            cantidad_origen=1,
+            cantidad_unidades=4,
+            referencia_snapshot="REF3",
+            descripcion_snapshot="DESC3",
+            unidad_empaque_snapshot=1,
+        )
+        self.client.login(username="fac1", password="test")
+
+        response = self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
+
+        self.assertNotContains(
+            response,
+            f"autosave('linea', {linea_con_punto.pk}, 'punto_incluido'",
         )
 
 
