@@ -177,6 +177,58 @@ class GenerarArchivoTest(TestCase):
         self.assertEqual(ws.cell_value(fila, col_map["lote"]), "99002.")
         ruta.unlink(missing_ok=True)
 
+    def test_lote_con_multiples_puntos_finales_se_quitan_todos_por_defecto(self):
+        Linea.objects.create(
+            documento=self.doc,
+            referencia="REF6",
+            lote="99003...",
+            punto_incluido=False,
+            cantidad_origen=Decimal("1"),
+            cantidad_unidades=Decimal("4"),
+            referencia_snapshot="REF6",
+            descripcion_snapshot="PRODUCTO CON VARIOS PUNTOS",
+            unidad_empaque_snapshot=1,
+        )
+
+        xls_bytes = generar_xls(self.corte)
+        ruta = Path("/tmp/test_gen_multiples_puntos_off.xls")
+        ruta.write_bytes(xls_bytes)
+
+        wb = xlrd.open_workbook(str(ruta))
+        ws = wb.sheet_by_name("BOGOTA")
+        col_map = {ws.cell_value(0, c): c for c in range(31)}
+        col_map_articulo = {ws.cell_value(r, col_map["articulo"]): r for r in range(1, ws.nrows)}
+        fila = col_map_articulo["REF6"]
+
+        self.assertEqual(ws.cell_value(fila, col_map["lote"]), "99003")
+        ruta.unlink(missing_ok=True)
+
+    def test_lote_con_multiples_puntos_finales_se_mantienen_todos_si_punto_incluido(self):
+        Linea.objects.create(
+            documento=self.doc,
+            referencia="REF7",
+            lote="99004...",
+            punto_incluido=True,
+            cantidad_origen=Decimal("1"),
+            cantidad_unidades=Decimal("4"),
+            referencia_snapshot="REF7",
+            descripcion_snapshot="PRODUCTO CON VARIOS PUNTOS INCLUIDO",
+            unidad_empaque_snapshot=1,
+        )
+
+        xls_bytes = generar_xls(self.corte)
+        ruta = Path("/tmp/test_gen_multiples_puntos_on.xls")
+        ruta.write_bytes(xls_bytes)
+
+        wb = xlrd.open_workbook(str(ruta))
+        ws = wb.sheet_by_name("BOGOTA")
+        col_map = {ws.cell_value(0, c): c for c in range(31)}
+        col_map_articulo = {ws.cell_value(r, col_map["articulo"]): r for r in range(1, ws.nrows)}
+        fila = col_map_articulo["REF7"]
+
+        self.assertEqual(ws.cell_value(fila, col_map["lote"]), "99004...")
+        ruta.unlink(missing_ok=True)
+
     def test_lote_de_un_solo_punto_produce_lote_vacio(self):
         Linea.objects.create(
             documento=self.doc,

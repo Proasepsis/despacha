@@ -79,7 +79,7 @@ def generar_xls(corte: Corte) -> bytes:
                 "observaciones": doc.observaciones,
                 "articulo": linea.referencia_snapshot,
                 "lote": (
-                    linea.lote[:-1]
+                    linea.lote.rstrip(".")
                     if linea.tiene_punto_final and not linea.punto_incluido
                     else linea.lote
                 ),
