@@ -136,6 +136,22 @@ class AdaptadorPlantillaFiltroTest(TestCase):
         facturas = sorted(d.factura for d in documentos)
         self.assertEqual(facturas, ["DOC001", "DOC002"])
 
+    def test_t25_tambien_se_acepta(self):
+        """DAVITA usa CÓDIGO COMPROBANTE 25 para traslados tipo T (además del 10)."""
+        filas = [
+            ["DOC001", "T", "25", "143505", "C", "150", "0005", "000005", "8", "L1", "900532504", "11001", "Desc 1", ""],
+            ["DOC002", "T", "25", "143510", "D", "150", "0005", "000005", "3", "L2", "830007355", "11001", "Desc 2", ""],
+        ]
+
+        ruta = Path("/tmp/test_t25.xlsx")
+        _crear_excel_plantilla(ruta, filas)
+
+        documentos = self.adaptador.parse(ruta)
+        ruta.unlink(missing_ok=True)
+
+        facturas = sorted(d.factura for d in documentos)
+        self.assertEqual(facturas, ["DOC001", "DOC002"])
+
     def test_agrupacion_por_documento(self):
         filas = [
             ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc 1", ""],

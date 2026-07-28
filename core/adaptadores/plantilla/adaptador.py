@@ -24,7 +24,7 @@ COLUMNAS_ESPERADAS = [
     "SUCURSAL",
 ]
 
-CODIGOS_PERMITIDOS = {"F": 1, "H": 5, "S": 1, "T": 10}
+CODIGOS_PERMITIDOS = {"F": {1}, "H": {5}, "S": {1}, "T": {10, 25}}
 
 
 def _normalizar(s: str) -> str:
@@ -184,19 +184,19 @@ class AdaptadorPlantilla(AdaptadorFormato):
             if tipo_comprobante not in CODIGOS_PERMITIDOS:
                 continue
 
-            codigo_esperado = CODIGOS_PERMITIDOS[tipo_comprobante]
+            codigos_esperados = CODIGOS_PERMITIDOS[tipo_comprobante]
             try:
                 codigo_int = int(float(codigo_comprobante))
             except (ValueError, TypeError):
                 continue
-            if codigo_int != codigo_esperado:
+            if codigo_int not in codigos_esperados:
                 continue
 
             if not cuenta_contable.startswith("14"):
                 continue
 
-            # T+10 (traslados) acepta tanto D como C; los demás solo C
-            es_traslado = tipo_comprobante == "T" and codigo_int == 10
+            # T (traslados, código 10 o 25) acepta tanto D como C; los demás solo C
+            es_traslado = tipo_comprobante == "T"
             if not es_traslado and debito_credito != "C":
                 continue
 
