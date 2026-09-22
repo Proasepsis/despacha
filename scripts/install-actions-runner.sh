@@ -39,8 +39,9 @@ if [[ ! -x "$runner_root/config.sh" ]]; then
     rm -rf "$temporary"
 fi
 
-if [[ ! -f "$runner_root/.runner" ]]; then
-    runuser -u "$runner_user" -- "$runner_root/config.sh" \
+pushd "$runner_root" >/dev/null
+if [[ ! -f .runner ]]; then
+    runuser -u "$runner_user" -- ./config.sh \
         --unattended \
         --url https://github.com/Proasepsis/despacha \
         --token "$RUNNER_TOKEN" \
@@ -50,8 +51,9 @@ if [[ ! -f "$runner_root/.runner" ]]; then
         --replace
 fi
 
-pushd "$runner_root" >/dev/null
-./svc.sh install "$runner_user"
+if [[ ! -f .service ]]; then
+    ./svc.sh install "$runner_user"
+fi
 ./svc.sh start
 popd >/dev/null
 echo "GitHub Actions runner installed as $runner_user"
