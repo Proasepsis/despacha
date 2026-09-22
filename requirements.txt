@@ -20,8 +20,8 @@ opentelemetry-api==1.44.0
 packaging==26.3
 proto-plus==1.28.4
 protobuf==7.36.2
-psycopg==3.2.13
-psycopg-binary==3.2.13
+psycopg==3.3.6
+psycopg-binary==3.3.6
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycparser==3.0
