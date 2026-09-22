@@ -1,5 +1,6 @@
 import base64
 import binascii
+import hashlib
 import json
 from datetime import timedelta
 
@@ -149,16 +150,20 @@ def detalle_corte(request, corte_id):
     if corte is None:
         return JsonResponse({"error": "not_found"}, status=404)
 
-    latest_version = corte.versiones.order_by("-numero").first()
-    entity_hash = latest_version.archivo_hash if latest_version else corte.hash_sha256
-    etag = f'"{entity_hash}"'
-    if request.headers.get("If-None-Match") == etag:
-        return HttpResponseNotModified()
-
     try:
         document_params = _parse_document_params(request)
     except ValueError as error:
         return JsonResponse({"error": "invalid_query", "detail": str(error)}, status=400)
+
+    latest_version = corte.versiones.order_by("-numero").first()
+    entity_hash = latest_version.archivo_hash if latest_version else corte.hash_sha256
+    etag = _construir_etag(
+        entity_hash,
+        page_size=document_params["page_size"],
+        documento_cursor=document_params["cursor"],
+    )
+    if request.headers.get("If-None-Match") == etag:
+        return HttpResponseNotModified()
 
     documents_query = Documento.objects.filter(corte=corte).select_related("ciudad")
     if document_params["cursor"]:
@@ -263,6 +268,11 @@ def _parse_document_params(request):
         "page_size": page_size,
         "cursor": _decode_document_cursor(request.GET.get("documento_cursor")),
     }
+
+
+def _construir_etag(entity_hash, *, page_size, documento_cursor):
+    base = f"{entity_hash}|{page_size}|{documento_cursor or ''}"
+    return '"' + hashlib.sha256(base.encode("utf-8")).hexdigest()[:32] + '"'
 
 
 def _encode_document_cursor(document_id):

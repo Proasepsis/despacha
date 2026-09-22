@@ -15,6 +15,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("nombre")
         parser.add_argument("--ip", action="append", default=[])
+        parser.add_argument(
+            "--permitir-cualquier-ip",
+            action="store_true",
+            help="Permite acceso desde cualquier IP (desaconsejado en produccion)",
+        )
         parser.add_argument("--rotar", action="store_true")
 
     def handle(self, *args, **options):
@@ -28,6 +33,10 @@ class Command(BaseCommand):
                 redes.append(str(ipaddress.ip_network(raw_ip, strict=False)))
             except ValueError as error:
                 raise CommandError(f"IP o red invalida: {raw_ip}") from error
+        if not redes and not options["permitir_cualquier_ip"]:
+            raise CommandError(
+                "Indique al menos una IP con --ip o use --permitir-cualquier-ip"
+            )
 
         identifier = uuid.uuid4().hex[:16]
         token = f"vigia_{identifier}_{secrets.token_urlsafe(32)}"
