@@ -39,6 +39,12 @@ class Corte(models.Model):
 
     class Meta:
         ordering = ["-fecha", "numero_corte", "adicional_letra"]
+        indexes = [
+            models.Index(
+                fields=["estado", "actualizado_en"],
+                name="corte_estado_actualizado_idx",
+            )
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["fecha", "numero_corte", "adicional_letra"],

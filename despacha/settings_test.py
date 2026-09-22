@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "productos",
     "clientes",
     "integraciones_siigo",
+    "api_vigia",
 ]
 
 MIDDLEWARE = [

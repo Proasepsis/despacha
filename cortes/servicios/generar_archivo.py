@@ -19,14 +19,14 @@ COLUMNAS = [
 ]
 
 
-def _cargar_parametros() -> dict[str, str]:
+def cargar_parametros_salida() -> dict[str, str]:
     return {
         p.clave: p.valor
         for p in ParametroSalida.objects.all()
     }
 
 
-def _ciudad_archivo(documento, params: dict) -> str:
+def ciudad_salida(documento, params: dict) -> str:
     if documento.ciudad and documento.ciudad.nombre_archivo:
         return documento.ciudad.nombre_archivo
     return params.get("ciudad_default", "")
@@ -38,8 +38,50 @@ def _cantidad_a_str(cantidad) -> str:
     return f"{cantidad:.2f}"
 
 
+def construir_fila_salida(documento, linea, params: dict) -> dict[str, str]:
+    nombre_ciudad = ciudad_salida(documento, params)
+    factura_completa = documento.factura + documento.factura_sufijo
+    return {
+        "punto": params.get("punto", ""),
+        "identificacion": params.get("identificacion", ""),
+        "nombre": params.get("nombre", ""),
+        "ciudad": nombre_ciudad,
+        "direccion": params.get("direccion", ""),
+        "tipo_documento_referencia": params.get("tipo_doc_ref", ""),
+        "documento_referencia": factura_completa,
+        "fecha_envio": "",
+        "hora_envio": "",
+        "bodega_alistamiento": "",
+        "sector_alistamiento": "",
+        "area_alistamiento": "",
+        "clasificador1": documento.clasificador1,
+        "clasificador2": factura_completa,
+        "observaciones": documento.observaciones,
+        "articulo": linea.referencia_snapshot,
+        "lote": (
+            linea.lote.rstrip(".")
+            if linea.tiene_punto_final and not linea.punto_incluido
+            else linea.lote
+        ),
+        "estado_articulo": params.get("estado_articulo", ""),
+        "sscc": "",
+        "sscc_completo": "",
+        "cantidad": _cantidad_a_str(linea.cantidad_unidades),
+        "campo1": "",
+        "campo2": "",
+        "valor": "",
+        "descripcion": linea.descripcion_snapshot,
+        "dato_adicional": "",
+        "zona": "",
+        "prioridad": "",
+        "telefono": "",
+        "email": "",
+        "Proveedor": "",
+    }
+
+
 def generar_xls(corte: Corte) -> bytes:
-    params = _cargar_parametros()
+    params = cargar_parametros_salida()
 
     wb = xlwt.Workbook(encoding="utf-8")
 
@@ -47,7 +89,7 @@ def generar_xls(corte: Corte) -> bytes:
 
     ciudades: dict[str, list] = {}
     for doc in documentos:
-        nombre_ciudad = _ciudad_archivo(doc, params)
+        nombre_ciudad = ciudad_salida(doc, params)
         if nombre_ciudad not in ciudades:
             ciudades[nombre_ciudad] = []
         for linea in doc.lineas.all():
@@ -60,44 +102,7 @@ def generar_xls(corte: Corte) -> bytes:
             ws.write(0, col_idx, col_name)
 
         for row_idx, (doc, linea) in enumerate(filas, start=1):
-            factura_completa = doc.factura + doc.factura_sufijo
-            valores = {
-                "punto": params.get("punto", ""),
-                "identificacion": params.get("identificacion", ""),
-                "nombre": params.get("nombre", ""),
-                "ciudad": nombre_ciudad,
-                "direccion": params.get("direccion", ""),
-                "tipo_documento_referencia": params.get("tipo_doc_ref", ""),
-                "documento_referencia": factura_completa,
-                "fecha_envio": "",
-                "hora_envio": "",
-                "bodega_alistamiento": "",
-                "sector_alistamiento": "",
-                "area_alistamiento": "",
-                "clasificador1": doc.clasificador1,
-                "clasificador2": factura_completa,
-                "observaciones": doc.observaciones,
-                "articulo": linea.referencia_snapshot,
-                "lote": (
-                    linea.lote.rstrip(".")
-                    if linea.tiene_punto_final and not linea.punto_incluido
-                    else linea.lote
-                ),
-                "estado_articulo": params.get("estado_articulo", ""),
-                "sscc": "",
-                "sscc_completo": "",
-                "cantidad": _cantidad_a_str(linea.cantidad_unidades),
-                "campo1": "",
-                "campo2": "",
-                "valor": "",
-                "descripcion": linea.descripcion_snapshot,
-                "dato_adicional": "",
-                "zona": "",
-                "prioridad": "",
-                "telefono": "",
-                "email": "",
-                "Proveedor": "",
-            }
+            valores = construir_fila_salida(doc, linea, params)
             for col_idx, col_name in enumerate(COLUMNAS):
                 ws.write(row_idx, col_idx, valores.get(col_name, ""))
 

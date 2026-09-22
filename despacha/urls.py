@@ -12,4 +12,5 @@ urlpatterns = [
     path("admin-auditoria/", include("core.urls")),
     path("cortes/", include("cortes.urls")),
     path("api/v1/siigo/", include("integraciones_siigo.urls")),
+    path("api/v1/vigia/", include("api_vigia.urls")),
 ]

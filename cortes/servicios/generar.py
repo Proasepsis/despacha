@@ -67,7 +67,7 @@ def generar_y_entregar(
 
     corte.version_actual = siguiente_version
     corte.estado = "generado"
-    corte.save(update_fields=["version_actual", "estado"])
+    corte.save(update_fields=["version_actual", "estado", "actualizado_en"])
 
     version = CorteVersion.objects.create(
         corte=corte,
