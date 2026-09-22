@@ -1,0 +1,26 @@
+### Variables
+@token = vigia_PEGAR_TOKEN
+@base = https://despacha.proasepsis.com.co/api/v1/vigia-staging
+
+### Listar cortes generados
+GET {{base}}/cortes?page_size=10
+Authorization: Bearer {{token}}
+
+### Documentos del dia con detalle
+GET {{base}}/documentos?fecha=2026-08-25&page_size=5
+Authorization: Bearer {{token}}
+
+### Documentos del dia filtrados por tipo
+GET {{base}}/documentos?fecha=2026-08-25&tipo=F&page_size=5
+Authorization: Bearer {{token}}
+
+### Detalle de un corte
+GET {{base}}/cortes/213?page_size=2
+Authorization: Bearer {{token}}
+
+### Sincronizacion incremental
+GET {{base}}/cortes?actualizado_desde=2026-08-01T00:00:00Z&page_size=10
+Authorization: Bearer {{token}}
+
+### Sin token (debe responder 401)
+GET {{base}}/cortes

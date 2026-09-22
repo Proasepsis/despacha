@@ -52,6 +52,25 @@ paths:
         "404": {$ref: "#/components/responses/Error"}
         "405": {$ref: "#/components/responses/Error"}
         "429": {$ref: "#/components/responses/Error"}
+  /documentos:
+    get:
+      summary: Documentos del dia con detalle completo
+      parameters:
+        - {name: fecha, in: query, description: Dia a consultar; sin valor se usa el dia actual de Bogota, schema: {type: string, format: date}}
+        - {name: tipo, in: query, description: Filtrar por tipo de comprobante, schema: {type: string, enum: [F, S, T, H]}}
+        - {name: page_size, in: query, description: Documentos por pagina, schema: {type: integer, minimum: 1, maximum: 500, default: 200}}
+        - {name: documento_cursor, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Pagina de documentos con lineas y datos del corte
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/DocumentosPage"}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "405": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
 components:
   securitySchemes:
     bearerAuth:
@@ -130,6 +149,47 @@ components:
         lineas:
           type: array
           items: {$ref: "#/components/schemas/Linea"}
+    CorteResumen:
+      type: object
+      required: [id, fecha, numero_corte, version]
+      properties:
+        id: {type: integer}
+        fecha: {type: string, format: date}
+        numero_corte: {type: integer}
+        adicional: {type: string}
+        nombre: {type: string}
+        version: {type: integer}
+    DocumentoDelDia:
+      type: object
+      required: [id, factura, tipo_comprobante, corte, lineas]
+      properties:
+        id: {type: integer}
+        factura: {type: string}
+        tipo_comprobante: {type: string}
+        nit: {type: string}
+        sucursal: {type: string}
+        ciudad:
+          type: [object, "null"]
+          properties:
+            codigo: {type: string}
+            nombre: {type: string}
+        corte: {$ref: "#/components/schemas/CorteResumen"}
+        lineas:
+          type: array
+          items: {$ref: "#/components/schemas/Linea"}
+    DocumentosPage:
+      type: object
+      properties:
+        schema_version: {type: string, const: "1.0"}
+        generated_at: {type: string, format: date-time}
+        fecha: {type: string, format: date}
+        tipo: {type: [string, "null"]}
+        count: {type: integer}
+        has_more: {type: boolean}
+        next_cursor: {type: [string, "null"]}
+        documentos:
+          type: array
+          items: {$ref: "#/components/schemas/DocumentoDelDia"}
     CorteDetail:
       type: object
       properties:
