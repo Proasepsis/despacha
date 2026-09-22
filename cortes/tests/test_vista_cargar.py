@@ -1,5 +1,6 @@
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
+import uuid
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -8,6 +9,7 @@ from openpyxl import Workbook
 
 from cortes.models import Corte
 from productos.models import Producto
+from integraciones_siigo.models import IngestionSiigo
 
 
 ENCABEZADOS = [
@@ -152,3 +154,56 @@ class VistaCargarTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Hoja1")
+
+    def test_carga_desde_ingesta_siigo(self):
+        self.client.login(username="facturacion", password="test")
+
+        ingestion = IngestionSiigo.objects.create(
+            extraction_id=uuid.uuid4(),
+            schema_version="1.0",
+            source="siigo",
+            window_start=date(2026, 7, 9),
+            window_end=date(2026, 7, 9),
+            generated_at=datetime(2026, 7, 9, 12, 0, 0),
+            raw_sha256="a" * 64,
+            raw_size_bytes=1,
+            content_sha256="b" * 64,
+            rows_sha256="c" * 64,
+            row_count=1,
+            payload={
+                "rows": [
+                    {
+                        "tipo_comprobante": "F",
+                        "codigo_comprobante": "001",
+                        "numero_documento": "56321",
+                        "cuenta_contable": "1430462000",
+                        "debito_credito": "C",
+                        "linea_producto": "150",
+                        "grupo_producto": "0005",
+                        "codigo_producto": "000005",
+                        "cantidad": 10,
+                        "codigo_bodega": "0400",
+                        "codigo_ubicacion": "005",
+                        "lote": "15F22",
+                        "nit": "800000",
+                        "codigo_ciudad": "11001",
+                        "descripcion_secuencia": "Desc",
+                        "sucursal": "",
+                    }
+                ]
+            },
+        )
+
+        response = self.client.post(
+            reverse("cargar_corte"),
+            {
+                "formato_origen": "API_SIIGO",
+                "ingestion": ingestion.pk,
+                "numero_corte": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        corte = Corte.objects.get(formato_origen="API_SIIGO")
+        self.assertEqual(corte.estado, "en_revision")
+        self.assertEqual(corte.documentos.count(), 1)

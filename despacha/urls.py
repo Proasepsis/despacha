@@ -11,4 +11,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("admin-auditoria/", include("core.urls")),
     path("cortes/", include("cortes.urls")),
+    path("api/v1/siigo/", include("integraciones_siigo.urls")),
 ]

@@ -13,7 +13,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: unless-stopped
+    restart: always
     networks:
       - despacha_net
 
@@ -29,7 +29,7 @@ services:
     volumes:
       - ${SECRETS_PATH:-/opt/despacha/secrets}:/secrets:ro
       - ${LOGS_PATH:-/opt/despacha/logs}:/app/logs
-    restart: unless-stopped
+    restart: always
     networks:
       - despacha_net
 

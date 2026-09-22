@@ -1,4 +1,7 @@
 .env
+secrets/
+client_secret_*.json
+*.sql
 .git
 .gitignore
 .idea/

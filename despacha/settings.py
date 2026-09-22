@@ -18,6 +18,7 @@ env = environ.Env(
     DB_HOST=(str, "db"),
     DB_PORT=(int, 5432),
     ENVIRONMENT=(str, "production"),
+    SIIGO_INGEST_TOKEN_SHA256=(str, ""),
 )
 
 environ.Env.read_env(BASE_DIR / ".env")
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     "cortes",
     "productos",
     "clientes",
+    "integraciones_siigo",
 ]
 
 MIDDLEWARE = [
@@ -126,6 +128,8 @@ CSRF_TRUSTED_ORIGINS = _csrf_env if _csrf_env else [
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+SIIGO_INGEST_TOKEN_SHA256 = env("SIIGO_INGEST_TOKEN_SHA256")
 
 if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000

@@ -13,5 +13,10 @@ staticfiles/
 .vscode/
 logs/
 *.log
+*.sql
+*.csv
+*.tar.gz
+*.swp
+backups/
 .claude/settings.local.json
 docs/superpowers/

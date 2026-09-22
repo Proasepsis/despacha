@@ -26,6 +26,7 @@ from cortes.servicios.cargar import (
     ErrorCombinacionFechaCorte,
     ErrorSugerirAdicional,
 )
+from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta
 from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
@@ -152,13 +153,25 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
             })
 
         try:
-            corte, resultado = cargar_archivo(
-                archivo=form.cleaned_data["archivo"],
-                usuario=request.user,
-                formato_origen=form.cleaned_data["formato_origen"],
-                numero_corte=int(form.cleaned_data["numero_corte"]),
-                es_adicional=form.cleaned_data.get("es_adicional", False),
-            )
+            formato_origen = form.cleaned_data["formato_origen"]
+            numero_corte = int(form.cleaned_data["numero_corte"])
+            es_adicional = form.cleaned_data.get("es_adicional", False)
+
+            if formato_origen == FORMATO_API_SIIGO:
+                corte, resultado = cargar_ingesta(
+                    ingestion=form.cleaned_data["ingestion"],
+                    usuario=request.user,
+                    numero_corte=numero_corte,
+                    es_adicional=es_adicional,
+                )
+            else:
+                corte, resultado = cargar_archivo(
+                    archivo=form.cleaned_data["archivo"],
+                    usuario=request.user,
+                    formato_origen=formato_origen,
+                    numero_corte=numero_corte,
+                    es_adicional=es_adicional,
+                )
         except ErrorDuplicado as e:
             form.add_error(None, str(e))
             return render(request, self.template_name, {

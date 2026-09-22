@@ -24,6 +24,11 @@
         {% endif %}
 
         <div class="form-group">
+            <label for="{{ form.formato_origen.id_for_label }}">Formato</label>
+            {{ form.formato_origen }}
+        </div>
+
+        <div class="form-group" id="archivo-field">
             <label for="{{ form.archivo.id_for_label }}">{{ form.archivo.label }}</label>
             {{ form.archivo }}
             {% if form.archivo.help_text %}
@@ -34,9 +39,12 @@
             {% endif %}
         </div>
 
-        <div class="form-group">
-            <label for="{{ form.formato_origen.id_for_label }}">Formato</label>
-            {{ form.formato_origen }}
+        <div class="form-group" id="ingestion-field" style="display:none;">
+            <label for="{{ form.ingestion.id_for_label }}">{{ form.ingestion.label }}</label>
+            {{ form.ingestion }}
+            {% if form.ingestion.errors %}
+            <ul class="errorlist">{% for e in form.ingestion.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
         </div>
 
         <div class="form-group">
@@ -83,5 +91,20 @@ document.getElementById('upload-form').addEventListener('submit', function() {
     document.querySelector('#upload-form [type=submit]').disabled = true;
     document.getElementById('upload-overlay').style.display = 'flex';
 });
+
+function toggleFormato() {
+    var formato = document.getElementById('{{ form.formato_origen.id_for_label }}').value;
+    var archivoField = document.getElementById('archivo-field');
+    var ingestionField = document.getElementById('ingestion-field');
+    if (formato === 'API_SIIGO') {
+        archivoField.style.display = 'none';
+        ingestionField.style.display = '';
+    } else {
+        archivoField.style.display = '';
+        ingestionField.style.display = 'none';
+    }
+}
+document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
+toggleFormato();
 </script>
 {% endblock %}
