@@ -102,6 +102,24 @@ class ApiVigiaTests(TestCase):
         self.assertEqual(denied.status_code, 403)
         self.assertEqual(allowed.status_code, 200)
 
+    def test_ignores_forwarded_ip_from_untrusted_source(self):
+        self.credential.ips_permitidas = ["10.20.30.0/24"]
+        self.credential.save(update_fields=["ips_permitidas"])
+        response = self.client.get(
+            reverse("api_vigia:listar_cortes"),
+            HTTP_AUTHORIZATION=f"Bearer {TOKEN}",
+            HTTP_X_REAL_IP="10.20.30.40",
+            REMOTE_ADDR="203.0.113.5",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_empty_ip_allowlist_means_any_ip(self):
+        self.assertFalse(self.credential.ips_permitidas)
+        response = self._get(
+            reverse("api_vigia:listar_cortes"), HTTP_X_REAL_IP="198.51.100.7"
+        )
+        self.assertEqual(response.status_code, 200)
+
     def test_lists_only_generated_cuts(self):
         response = self._get(
             reverse("api_vigia:listar_cortes") + "?fecha_desde=2026-01-01"
@@ -246,6 +264,13 @@ class ApiVigiaTests(TestCase):
         cached = self._get(url, HTTP_IF_NONE_MATCH=response["ETag"])
         self.assertEqual(cached.status_code, 304)
 
+        other_page = self._get(url + "?page_size=1")
+        wrong_etag = self._get(
+            url + "?page_size=1", HTTP_IF_NONE_MATCH=response["ETag"]
+        )
+        self.assertNotEqual(response["ETag"], other_page["ETag"])
+        self.assertEqual(wrong_etag.status_code, 200)
+
     def test_non_generated_detail_is_hidden(self):
         response = self._get(
             reverse("api_vigia:detalle_corte", args=[self.review.id])
@@ -260,7 +285,10 @@ class ApiVigiaTests(TestCase):
 
     def test_management_command_rotates_token(self):
         output = StringIO()
-        call_command("crear_credencial_vigia", "nuevo-cliente", stdout=output)
+        call_command(
+            "crear_credencial_vigia", "nuevo-cliente", "--ip", "10.0.0.0/8",
+            stdout=output,
+        )
         token = output.getvalue().strip()
         created = CredencialVigia.objects.get(nombre="nuevo-cliente")
         self.assertTrue(token.startswith(f"vigia_{created.identificador}_"))
@@ -268,6 +296,7 @@ class ApiVigiaTests(TestCase):
             created.token_sha256,
             hashlib.sha256(token.encode()).hexdigest(),
         )
+        self.assertEqual(created.ips_permitidas, ["10.0.0.0/8"])
 
         with self.assertRaises(CommandError):
             call_command("crear_credencial_vigia", "api-vigia-test")
@@ -277,3 +306,18 @@ class ApiVigiaTests(TestCase):
 
         with self.assertRaises(CommandError):
             call_command("crear_credencial_vigia", "   ")
+
+        with self.assertRaises(CommandError):
+            call_command("crear_credencial_vigia", "sin-ip-ni-bandera")
+
+        abierta = StringIO()
+        call_command(
+            "crear_credencial_vigia",
+            "abierta-deliberadamente",
+            "--permitir-cualquier-ip",
+            stdout=abierta,
+        )
+        creada_abierta = CredencialVigia.objects.get(
+            nombre="abierta-deliberadamente"
+        )
+        self.assertEqual(creada_abierta.ips_permitidas, [])

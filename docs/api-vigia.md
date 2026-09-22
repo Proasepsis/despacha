@@ -31,13 +31,22 @@ Authorization: Bearer vigia_<identificador>_<secreto>
 ```
 
 Nunca envie el token en la URL, archivos de codigo, tickets o mensajes. Guardelo
-en un gestor de secretos. Para crear una credencial:
+en un gestor de secretos. Para crear una credencial se debe indicar al menos
+una IP autorizada o aceptar explicitamente el acceso desde cualquier IP:
 
 ```bash
-docker exec despacha-web-1 python manage.py crear_credencial_vigia api-vigia
+docker exec despacha-web-1 python manage.py crear_credencial_vigia \
+  api-vigia --ip 203.0.113.10/32
 ```
 
-Para limitarla a una IP o red y para rotarla:
+Para permitir cualquier IP (desaconsejado en produccion):
+
+```bash
+docker exec despacha-web-1 python manage.py crear_credencial_vigia \
+  api-vigia --permitir-cualquier-ip
+```
+
+Para rotarla conservando las mismas IP:
 
 ```bash
 docker exec despacha-web-1 python manage.py crear_credencial_vigia \

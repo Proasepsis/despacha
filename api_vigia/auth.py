@@ -14,6 +14,7 @@ from .models import CredencialVigia
 logger = logging.getLogger(__name__)
 
 USAGE_REFRESH_INTERVAL = timedelta(seconds=30)
+PROXIES_CONFIABLES = {"127.0.0.1", "::1"}
 
 
 def autenticar_vigia(view):
@@ -68,7 +69,11 @@ def autenticar_vigia(view):
 
 
 def _source_ip(request):
-    return request.headers.get("X-Real-IP") or request.META.get("REMOTE_ADDR")
+    remote_address = request.META.get("REMOTE_ADDR")
+    forwarded_ip = request.headers.get("X-Real-IP")
+    if remote_address in PROXIES_CONFIABLES and forwarded_ip:
+        return forwarded_ip
+    return remote_address
 
 
 def _ip_allowed(source_ip, allowed_networks):
