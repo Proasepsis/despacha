@@ -1,0 +1,34 @@
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full commit SHA currently validated in staging
+        required: true
+        type: string
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, despacha-deploy]
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote staging image to production
+        env:
+          IMAGE: ghcr.io/proasepsis/despacha:sha-${{ inputs.commit_sha }}
+        run: bash scripts/deploy-image.sh production "$IMAGE" "$GITHUB_WORKSPACE/docker-compose.yml"

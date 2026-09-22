@@ -18,9 +18,10 @@ services:
       - despacha_net
 
   web:
+    image: ${WEB_IMAGE:-despacha-web}
     build: .
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     ports:
       - "127.0.0.1:${PORT:-8000}:8000"
     depends_on:
