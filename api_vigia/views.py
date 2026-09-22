@@ -79,6 +79,71 @@ def listar_cortes(request):
 
 @require_GET
 @autenticar_vigia
+def documentos_dia(request):
+    raw_fecha = request.GET.get("fecha")
+    if raw_fecha:
+        fecha = parse_date(raw_fecha)
+        if fecha is None:
+            return JsonResponse(
+                {"error": "invalid_query", "detail": "fecha debe usar formato YYYY-MM-DD"},
+                status=400,
+            )
+    else:
+        fecha = timezone.localdate()
+
+    tipo = request.GET.get("tipo")
+    if tipo:
+        tipo = tipo.strip().upper()
+        if tipo not in {"F", "S", "T", "H"}:
+            return JsonResponse(
+                {"error": "invalid_query", "detail": "tipo debe ser F, S, T o H"},
+                status=400,
+            )
+
+    try:
+        document_params = _parse_document_params(request)
+    except ValueError as error:
+        return JsonResponse({"error": "invalid_query", "detail": str(error)}, status=400)
+
+    documents_query = Documento.objects.filter(
+        corte__fecha=fecha, corte__estado="generado"
+    ).select_related("corte", "ciudad")
+    if tipo:
+        documents_query = documents_query.filter(tipo_comprobante=tipo)
+    if document_params["cursor"]:
+        documents_query = documents_query.filter(id__gt=document_params["cursor"])
+    documents_page = list(
+        documents_query.prefetch_related("lineas").order_by("id")[
+            : document_params["page_size"] + 1
+        ]
+    )
+    documents_has_more = len(documents_page) > document_params["page_size"]
+    documents_page = documents_page[: document_params["page_size"]]
+    next_cursor = (
+        _encode_document_cursor(documents_page[-1].id) if documents_has_more else None
+    )
+
+    params = {item.clave: item.valor for item in ParametroSalida.objects.all()}
+    response = JsonResponse(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": timezone.now().isoformat(),
+            "fecha": fecha.isoformat(),
+            "tipo": tipo,
+            "count": len(documents_page),
+            "has_more": documents_has_more,
+            "next_cursor": next_cursor,
+            "documentos": [
+                _serialize_documento(documento, params) for documento in documents_page
+            ],
+        }
+    )
+    response["X-Schema-Version"] = SCHEMA_VERSION
+    return response
+
+
+@require_GET
+@autenticar_vigia
 def detalle_corte(request, corte_id):
     corte = Corte.objects.filter(pk=corte_id, estado="generado").first()
     if corte is None:
@@ -285,3 +350,17 @@ def _serialize_document(documento, params):
             for linea in documento.lineas.all()
         ],
     }
+
+
+def _serialize_documento(documento, params):
+    corte = documento.corte
+    data = _serialize_document(documento, params)
+    data["corte"] = {
+        "id": corte.id,
+        "fecha": corte.fecha.isoformat(),
+        "numero_corte": corte.numero_corte,
+        "adicional": corte.adicional_letra,
+        "nombre": corte.display_corte,
+        "version": corte.version_actual,
+    }
+    return data

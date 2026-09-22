@@ -169,6 +169,69 @@ class ApiVigiaTests(TestCase):
         self.assertNotIn("cliente", documento)
         self.assertIn("nit", documento)
 
+    def test_documentos_dia_returns_detailed_documents(self):
+        response = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=2026-07-08"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["fecha"], "2026-07-08")
+        facturas = [documento["factura"] for documento in payload["documentos"]]
+        self.assertEqual(facturas, ["F-generated"])
+        documento = payload["documentos"][0]
+        self.assertEqual(documento["tipo_comprobante"], "F")
+        self.assertEqual(documento["corte"]["id"], self.generated.id)
+        self.assertEqual(documento["lineas"][0]["articulo"], "1500005000005")
+
+    def test_documentos_dia_filters_type_and_paginates(self):
+        Documento.objects.create(
+            corte=self.generated,
+            factura="T-1",
+            nit="900123",
+            tipo_comprobante="T",
+        )
+        solo_t = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=2026-07-08&tipo=T"
+        )
+        self.assertEqual(
+            [documento["factura"] for documento in solo_t.json()["documentos"]],
+            ["T-1"],
+        )
+        solo_f = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=2026-07-08&tipo=F"
+        )
+        self.assertEqual(
+            [documento["factura"] for documento in solo_f.json()["documentos"]],
+            ["F-generated"],
+        )
+
+        first_page = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=2026-07-08&page_size=1"
+        )
+        payload = first_page.json()
+        self.assertTrue(payload["has_more"])
+        next_page = self._get(
+            reverse("api_vigia:documentos_dia")
+            + f"?fecha=2026-07-08&page_size=1&documento_cursor={payload['next_cursor']}"
+        )
+        self.assertFalse(next_page.json()["has_more"])
+
+    def test_documentos_dia_validates_date_and_hides_review(self):
+        invalid = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=no-es-fecha"
+        )
+        self.assertEqual(invalid.status_code, 400)
+        invalid_tipo = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=2026-07-08&tipo=X"
+        )
+        self.assertEqual(invalid_tipo.status_code, 400)
+
+        review_day = self._get(
+            reverse("api_vigia:documentos_dia") + "?fecha=2026-07-09"
+        )
+        self.assertEqual(review_day.status_code, 200)
+        self.assertEqual(review_day.json()["count"], 0)
+
     def test_detail_matches_ready_output_and_supports_etag(self):
         url = reverse("api_vigia:detalle_corte", args=[self.generated.id])
         response = self._get(url)

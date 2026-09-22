@@ -10,6 +10,7 @@ Produccion:
 ```text
 GET https://despacha.proasepsis.com.co/api/v1/vigia/cortes
 GET https://despacha.proasepsis.com.co/api/v1/vigia/cortes/{id}
+GET https://despacha.proasepsis.com.co/api/v1/vigia/documentos
 ```
 
 Staging desde el laboratorio:
@@ -17,6 +18,7 @@ Staging desde el laboratorio:
 ```text
 GET https://despacha.proasepsis.com.co/api/v1/vigia-staging/cortes
 GET https://despacha.proasepsis.com.co/api/v1/vigia-staging/cortes/{id}
+GET https://despacha.proasepsis.com.co/api/v1/vigia-staging/documentos
 ```
 
 ## Autenticacion
@@ -62,6 +64,30 @@ Filtros opcionales:
 Sin filtros se retornan los ultimos 30 dias. Si `has_more` es `true`, repita la
 consulta con el mismo filtro y `cursor=<next_cursor>`.
 
+## Documentos del dia
+
+Entrega todos los documentos (facturas, remisiones, traslados u otros
+comprobantes) de los cortes generados de un dia, cada uno con sus lineas
+completas y los datos del corte al que pertenecen.
+
+```bash
+curl --fail --silent \
+  -H "Authorization: Bearer $VIGIA_API_TOKEN" \
+  "https://despacha.proasepsis.com.co/api/v1/vigia/documentos?fecha=2026-08-25&page_size=50"
+```
+
+Parametros:
+
+- `fecha`: `YYYY-MM-DD`. Sin este parametro se usa el dia actual de Bogota.
+- `tipo`: opcional; filtra por tipo de comprobante (`F`, `S`, `T`, `H`).
+- `page_size`: entre 1 y 500; predeterminado 200.
+- `documento_cursor`: valor opaco entregado en `next_cursor`.
+
+Cada documento incluye `factura`, `tipo_comprobante`, `nit`, `sucursal`,
+`ciudad`, el bloque `corte` (id, numero, version) y sus `lineas` con los
+campos finales Vigia. Si `has_more` es `true`, repita la consulta con el
+mismo filtro y `documento_cursor=<next_cursor>`.
+
 ## Consultar un corte
 
 ```bash
@@ -85,7 +111,9 @@ Si `documentos_has_more` es `true`, repita la consulta con el mismo
 El endpoint retorna `ETag`. En consultas posteriores puede enviar
 `If-None-Match`; si el corte no cambio recibira `304 Not Modified` sin cuerpo.
 
-## Python
+## Consumo desde herramientas
+
+### Python (requests)
 
 ```python
 import os
@@ -107,6 +135,71 @@ for corte in response.json()["results"]:
     detail.raise_for_status()
     procesar(detail.json()["data"])
 ```
+
+### Documentos del dia con paginacion
+
+```python
+import os
+import requests
+
+token = os.environ["VIGIA_API_TOKEN"]
+headers = {"Authorization": f"Bearer {token}"}
+base = "https://despacha.proasepsis.com.co/api/v1/vigia"
+params = {"fecha": "2026-08-25", "page_size": 100}
+
+while True:
+    response = requests.get(f"{base}/documentos", headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+    body = response.json()
+    for documento in body["documentos"]:
+        procesar(documento)  # documento incluye corte, nit, tipo y lineas
+    if not body["has_more"]:
+        break
+    params["documento_cursor"] = body["next_cursor"]
+```
+
+### Jupyter
+
+```python
+%pip install requests python-dotenv
+```
+
+```python
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()  # guarde VIGIA_API_TOKEN en un archivo .env local
+headers = {"Authorization": f"Bearer {os.environ['VIGIA_API_TOKEN']}"}
+
+payload = requests.get(
+    "https://despacha.proasepsis.com.co/api/v1/vigia/documentos",
+    headers=headers,
+    params={"fecha": "2026-08-25"},
+    timeout=30,
+).json()
+
+payload["documentos"][0].keys()
+```
+
+### VSCode con REST Client
+
+1. Instale la extension `humao.rest-client`.
+2. Cree el archivo `docs/rest/api-vigia.http` incluido en el repositorio.
+3. Defina el token en las variables del archivo y pulse `Send Request` sobre
+   cada bloque; la respuesta aparece en el panel lateral.
+
+### PyCharm (HTTP Client)
+
+1. Abra el mismo archivo `docs/rest/api-vigia.http`.
+2. PyCharm lo reconoce como `HTTP Request`; defina el token en `{{token}}`.
+3. Pulse el icono verde de ejecucion junto a cada peticion.
+
+### Postman
+
+1. Importe `docs/postman/api-vigia.postman_collection.json`.
+2. Pegue el token en la variable `token` de la coleccion.
+3. Las peticiones `Documentos del dia`, `Listar cortes` y `Detalle` quedan listas.
 
 ## Codigos HTTP
 
