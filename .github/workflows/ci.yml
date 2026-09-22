@@ -22,6 +22,12 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Validate dependencies
+        run: pip check
+      - name: Check pending migrations
+        env:
+          DJANGO_SETTINGS_MODULE: despacha.settings_test
+        run: python manage.py makemigrations --check --dry-run
       - name: Run Django tests
         env:
           DJANGO_SETTINGS_MODULE: despacha.settings_test

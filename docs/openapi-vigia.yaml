@@ -1,0 +1,154 @@
+openapi: 3.1.0
+info:
+  title: Despacha API Vigia
+  version: 1.0.0
+  description: API de solo lectura para cortes generados.
+servers:
+  - url: https://despacha.proasepsis.com.co/api/v1/vigia
+    description: Produccion
+security:
+  - bearerAuth: []
+paths:
+  /cortes:
+    get:
+      summary: Lista cortes generados
+      parameters:
+        - {name: fecha_desde, in: query, schema: {type: string, format: date}}
+        - {name: fecha_hasta, in: query, schema: {type: string, format: date}}
+        - {name: actualizado_desde, in: query, schema: {type: string, format: date-time}}
+        - {name: page_size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Pagina de cortes
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CortePage"}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "405": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /cortes/{id}:
+    get:
+      summary: Consulta un corte generado con documentos y lineas
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+        - {name: If-None-Match, in: header, schema: {type: string}}
+        - {name: page_size, in: query, description: Documentos por pagina, schema: {type: integer, minimum: 1, maximum: 500, default: 200}}
+        - {name: documento_cursor, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Corte completo
+          headers:
+            ETag: {schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CorteDetail"}
+        "304": {description: Sin cambios}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "405": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    Error:
+      description: Respuesta de error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: {type: string}
+              detail: {type: string}
+  schemas:
+    CorteSummary:
+      type: object
+      required: [id, fecha, numero_corte, version, actualizado_en, path]
+      properties:
+        id: {type: integer}
+        fecha: {type: string, format: date}
+        numero_corte: {type: integer}
+        adicional: {type: string}
+        nombre: {type: string}
+        version: {type: integer}
+        actualizado_en: {type: string, format: date-time}
+        documentos: {type: integer}
+        lineas: {type: integer}
+        path: {type: string}
+    CortePage:
+      type: object
+      properties:
+        schema_version: {type: string, const: "1.0"}
+        generated_at: {type: string, format: date-time}
+        count: {type: integer}
+        has_more: {type: boolean}
+        next_cursor: {type: [string, "null"]}
+        results:
+          type: array
+          items: {$ref: "#/components/schemas/CorteSummary"}
+    Linea:
+      type: object
+      required: [id, articulo, lote, cantidad]
+      properties:
+        id: {type: integer}
+        punto: {type: string}
+        identificacion: {type: string}
+        nombre: {type: string}
+        ciudad: {type: string}
+        direccion: {type: string}
+        tipo_documento_referencia: {type: string}
+        documento_referencia: {type: string}
+        clasificador1: {type: string}
+        clasificador2: {type: string}
+        observaciones: {type: string}
+        articulo: {type: string}
+        lote: {type: string}
+        cantidad: {type: string}
+        descripcion: {type: string}
+    Documento:
+      type: object
+      required: [id, factura, lineas]
+      properties:
+        id: {type: integer}
+        factura: {type: string}
+        tipo_comprobante: {type: string}
+        nit: {type: string}
+        sucursal: {type: string}
+        ciudad:
+          type: [object, "null"]
+          properties:
+            codigo: {type: string}
+            nombre: {type: string}
+        lineas:
+          type: array
+          items: {$ref: "#/components/schemas/Linea"}
+    CorteDetail:
+      type: object
+      properties:
+        schema_version: {type: string, const: "1.0"}
+        generated_at: {type: string, format: date-time}
+        data:
+          type: object
+          required: [id, fecha, numero_corte, version, documentos]
+          properties:
+            id: {type: integer}
+            fecha: {type: string, format: date}
+            numero_corte: {type: integer}
+            adicional: {type: string}
+            nombre: {type: string}
+            version: {type: integer}
+            actualizado_en: {type: string, format: date-time}
+            archivo_sha256: {type: string}
+            documentos_has_more: {type: boolean}
+            documentos_next_cursor: {type: [string, "null"]}
+            documentos:
+              type: array
+              items: {$ref: "#/components/schemas/Documento"}

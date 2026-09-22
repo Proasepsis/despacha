@@ -351,6 +351,8 @@ class EditarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
                 else:
                     return HttpResponseBadRequest(f"Tipo desconocido: {tipo}")
 
+                corte.save(update_fields=["actualizado_en"])
+
         except Exception:
             return JsonResponse({"ok": False, "error": "Error al guardar"}, status=500)
 
