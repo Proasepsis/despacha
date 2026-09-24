@@ -143,6 +143,13 @@ class AdaptadorPlantilla(AdaptadorFormato):
             wb.close()
             return []
 
+        # ponytail: SIIGO trae el encabezado CUCON pero las filas no traen esa celda,
+        # así que se descarta para que los datos queden alineados. Si SIIGO empieza
+        # a llenar la columna, quitar este filtro.
+        encabezados_leidos = [
+            e for e in encabezados_leidos if not _normalizar(e).startswith("CUCON")
+        ]
+
         col_idx: dict[str, int] = {}
         for esperada in COLUMNAS_ESPERADAS:
             idx = _buscar_columna(encabezados_leidos, esperada)
