@@ -241,6 +241,28 @@ class AdaptadorPlantillaFiltroTest(TestCase):
         linea = documentos[0].lineas[0]
         self.assertEqual(linea.producto_codigo, "1500005000005")
 
+    def test_encabezado_cucon_sin_datos_se_ignora(self):
+        # SIIGO trae el encabezado CUCON antes de LÍNEA PRODUCTO pero las filas no traen la celda
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Hoja1"
+        encabezados = ENCABEZADOS[:5] + ["CUCON - CÓDIGO ÚNICO DE CONTRATO"] + ENCABEZADOS[5:]
+        for col, encabezado in enumerate(encabezados, start=1):
+            ws.cell(row=5, column=col, value=encabezado)
+        fila = ["DOC001", "F", "1", "143505", "C", "150", "0005", "000005", "10", "L1", "800000", "11001", "Desc", ""]
+        for col, valor in enumerate(fila, start=1):
+            ws.cell(row=6, column=col, value=valor)
+        ruta = Path("/tmp/test_cucon.xlsx")
+        wb.save(ruta)
+
+        documentos = self.adaptador.parse(ruta)
+        ruta.unlink(missing_ok=True)
+
+        linea = documentos[0].lineas[0]
+        self.assertEqual(linea.producto_codigo, "1500005000005")
+        self.assertEqual(linea.cantidad_origen, Decimal("10"))
+        self.assertEqual(linea.lote_raw, "L1")
+
     def test_armar_codigo_producto_varios_casos(self):
         from core.adaptadores.plantilla.adaptador import _armar_codigo_producto
 
