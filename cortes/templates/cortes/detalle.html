@@ -36,11 +36,23 @@
 </div>
 {% endif %}
 
+{% if puede_eliminar %}
+<div id="barra-eliminar" style="display:none;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.75rem;padding:.5rem 1rem;border:1px solid var(--danger);border-radius:8px;background:var(--surface);">
+    <span id="barra-eliminar-texto" style="font-family:var(--font-mono);font-size:12px;color:var(--text);"></span>
+    <button type="button" onclick="eliminarSeleccionados()" class="btn btn-ghost" style="height:28px;font-size:11px;color:var(--danger);">🗑 Eliminar seleccionados</button>
+</div>
+{% endif %}
+
 {% for doc in documentos_data %}
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.75rem;overflow:hidden;">
 
     <div data-doc-header data-doc-id="{{ doc.id }}" style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;background:var(--surface-raised);border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            {% if puede_eliminar %}
+            <input type="checkbox" class="sel-eliminar" value="{{ doc.id }}" data-factura="{{ doc.factura }}"
+                   onchange="actualizarSeleccion()" title="Seleccionar para eliminar" aria-label="Seleccionar {{ doc.factura }}"
+                   style="width:auto;margin:0;">
+            {% endif %}
             <span style="font-family:var(--font-mono);font-weight:500;font-size:13px;color:var(--text);min-width:5rem;">{{ doc.factura }}</span>
             {% if doc.tipo_comprobante %}
             <span style="display:inline-flex;align-items:center;justify-content:center;height:24px;min-width:24px;background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:0 .45rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.tipo_comprobante }}</span>
@@ -93,6 +105,11 @@
             <span style="display:inline-flex;align-items:center;height:28px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">EMB {{ doc.clasificador1 }}</span>
             <span style="display:inline-flex;align-items:center;height:28px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">PRIO {{ doc.observaciones }}</span>
             <button data-parent-doc-id="{{ doc.id }}" onclick="toggleLineas({{ doc.id }})" class="btn btn-ghost" style="height:28px;font-size:11px;padding:0 .6rem;">Ver líneas</button>
+            {% endif %}
+            {% if puede_eliminar %}
+            <button type="button" onclick="eliminarDocumentos([{{ doc.id }}], ['{{ doc.factura|escapejs }}'])"
+                    class="btn btn-ghost" title="Eliminar documento {{ doc.factura }}" aria-label="Eliminar documento {{ doc.factura }}"
+                    style="height:28px;font-size:13px;padding:0 .5rem;color:var(--danger);">🗑</button>
             {% endif %}
         </div>
     </div>
@@ -207,6 +224,37 @@ function autosave(tipo, id, campo, valor) {
             el.style.color = 'var(--success)';
             setTimeout(function() { el.style.color = 'var(--text-muted)'; }, 2500);
         }
+    });
+}
+
+function actualizarSeleccion() {
+    var n = document.querySelectorAll('.sel-eliminar:checked').length;
+    document.getElementById('barra-eliminar').style.display = n ? 'flex' : 'none';
+    document.getElementById('barra-eliminar-texto').textContent = n + ' documento(s) seleccionado(s)';
+}
+
+function eliminarSeleccionados() {
+    var sel = Array.prototype.slice.call(document.querySelectorAll('.sel-eliminar:checked'));
+    eliminarDocumentos(
+        sel.map(function(c) { return parseInt(c.value, 10); }),
+        sel.map(function(c) { return c.dataset.factura; })
+    );
+}
+
+function eliminarDocumentos(ids, facturas) {
+    var msg = facturas.length === 1
+        ? '¿Quieres eliminar el documento ' + facturas[0] + '?'
+        : '¿Quieres eliminar ' + facturas.length + ' documentos: ' + facturas.join(', ') + '?';
+    if (!confirm(msg + '\n\nSe eliminarán también todas sus líneas. Esta acción no se puede deshacer.')) return;
+    fetch('/cortes/' + CORTE_ID + '/eliminar-documentos/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({documento_ids: ids})
+    }).then(function(r) {
+        return r.json().catch(function() { return {ok: false, error: 'Error ' + r.status}; });
+    }).then(function(data) {
+        if (data.ok) { location.reload(); }
+        else { alert('No se pudo eliminar: ' + (data.error || 'error desconocido')); }
     });
 }
 

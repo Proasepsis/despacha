@@ -219,6 +219,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
 
         grupos = set(user.groups.values_list("name", flat=True))
         es_editor = bool(grupos & {"almacenamiento", "admin"})
+        puede_eliminar = bool(grupos & {"facturacion", "admin"}) and corte.estado == "en_revision"
 
         documentos = corte.documentos.prefetch_related("lineas").all()
         docs_data = []
@@ -260,6 +261,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
             "lineas_count": sum(len(d["lineas"]) for d in docs_data),
             "sin_maestro_count": sin_maestro_count,
             "es_editor": es_editor,
+            "puede_eliminar": puede_eliminar,
             "clasificador1_opciones": ["EMBALAR", "NO EMBALAR", "PREGUNTAR"],
             "prioridad_opciones": ["PRIORIDAD", "NO PRIORIDAD"],
         })
@@ -412,6 +414,47 @@ class DeshacerSplitView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
             return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
         return JsonResponse({"ok": True})
+
+
+class EliminarDocumentosView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
+    raise_exception = True
+
+    def post(self, request, pk):
+        corte = get_object_or_404(Corte, pk=pk)
+
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest("JSON inválido")
+
+        ids = body.get("documento_ids")
+        if not ids or not isinstance(ids, list):
+            return HttpResponseBadRequest("Falta documento_ids")
+
+        with transaction.atomic():
+            corte = Corte.objects.select_for_update().get(pk=corte.pk)
+            if corte.estado != "en_revision":
+                return JsonResponse(
+                    {"ok": False, "error": "Solo se pueden eliminar documentos de un corte en revisión."},
+                    status=400,
+                )
+            docs = list(corte.documentos.filter(pk__in=ids).annotate(n_lineas=Count("lineas")))
+            if len(docs) != len(set(ids)):
+                return JsonResponse({"ok": False, "error": "Documento no encontrado en este corte."}, status=404)
+
+            for doc in docs:
+                registrar_auditoria(
+                    usuario=request.user,
+                    objeto_tipo="Documento",
+                    objeto_id=str(doc.pk),
+                    tipo_evento="eliminacion",
+                    valor_anterior=f"{doc.factura} ({doc.tipo_comprobante}) NIT {doc.nit}, {doc.n_lineas} líneas",
+                    metadata={"corte_id": corte.pk},
+                )
+            # Las líneas se borran en cascada
+            corte.documentos.filter(pk__in=[d.pk for d in docs]).delete()
+
+        return JsonResponse({"ok": True, "eliminados": [d.factura for d in docs]})
 
 
 class ForzarLiberacionView(LoginRequiredMixin, EsAdminMixin, View):

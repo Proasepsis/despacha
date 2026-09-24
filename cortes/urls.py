@@ -9,6 +9,7 @@ urlpatterns = [
     path("<int:pk>/editar/", views.EditarCorteView.as_view(), name="editar_corte"),
     path("<int:pk>/split/", views.SplitDocumentoView.as_view(), name="split_documento"),
     path("<int:pk>/deshacer-split/", views.DeshacerSplitView.as_view(), name="deshacer_split"),
+    path("<int:pk>/eliminar-documentos/", views.EliminarDocumentosView.as_view(), name="eliminar_documentos"),
     path("<int:pk>/forzar-liberacion/", views.ForzarLiberacionView.as_view(), name="forzar_liberacion"),
     path("<int:pk>/generar/", views.GenerarCorteView.as_view(), name="generar_corte"),
     path("<int:pk>/presencia/", views.PresenciaPingView.as_view(), name="presencia_corte"),

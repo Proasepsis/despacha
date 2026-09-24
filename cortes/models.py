@@ -153,6 +153,7 @@ class Auditoria(models.Model):
         ("regeneracion", "Regeneración"),
         ("split", "Split de documento"),
         ("deshacer_split", "Deshacer split"),
+        ("eliminacion", "Eliminación"),
         ("forzar_liberacion", "Forzar liberación"),
         ("creacion", "Creación"),
         ("inactivacion", "Inactivación"),
