@@ -70,3 +70,22 @@ class EliminarDocumentosTest(TestCase):
         self.assertContains(self.client.get(detalle), 'class="sel-eliminar"')
         self.client.force_login(self.almacenamiento)
         self.assertNotContains(self.client.get(detalle), 'class="sel-eliminar"')
+
+
+class AvisoYaSubidoTest(TestCase):
+    def test_detalle_avisa_documento_ya_subido_en_otro_corte(self):
+        user = User.objects.create_user(username="u", password="x")
+        c1 = Corte.objects.create(archivo="a", hash_sha256="a", usuario_carga=user,
+                                  fecha=date(2026, 9, 23), numero_corte=1, estado="generado")
+        c2 = Corte.objects.create(archivo="b", hash_sha256="b", usuario_carga=user,
+                                  fecha=date(2026, 9, 24), numero_corte=2, estado="en_revision")
+        Documento.objects.create(corte=c1, factura="603", tipo_comprobante="T")
+        Documento.objects.create(corte=c1, factura="56570", tipo_comprobante="F")
+        Documento.objects.create(corte=c2, factura="603", tipo_comprobante="T")
+        Documento.objects.create(corte=c2, factura="56570", tipo_comprobante="S")  # mismo número, otro tipo
+
+        self.client.force_login(user)
+        r = self.client.get(reverse("detalle_corte", args=[c2.pk]))
+
+        self.assertContains(r, 'class="ya-subido"', count=1)
+        self.assertContains(r, "ya en Corte 1 · 23 Sep")
