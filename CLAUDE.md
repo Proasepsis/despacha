@@ -34,6 +34,9 @@ Always use `settings_test` for local testing. `settings.py` requires a live Post
 - **`core`** — shared infrastructure: `ParametroSalida`, `ReglaClasificacion`, `NotificacionDestinatarios` models; format adapter system; destination adapter system; notification and audit services.
 - **`cortes`** — main domain: `Corte`, `CorteVersion`, `Documento`, `Linea`, `Auditoria`, `PresenciaCorte` models; all views; all domain services.
 - **`productos`** — master catalog: `Producto` and `Ciudad` models (read-only from the app's perspective).
+- **`clientes`** — `Cliente` model (NIT-keyed), populated via `manage.py importar_clientes`. Read-only reference data, not currently joined into corte processing.
+- **`integraciones_siigo`** — receives billing-cut data pushed from SIIGO as JSON instead of an uploaded spreadsheet; see [SIIGO ingestion](#siigo-ingestion-integraciones_siigo).
+- **`api_vigia`** — read-only external API exposing generated cortes; see [Vigia API](#vigia-read-only-api-api_vigia).
 
 ### Corte lifecycle
 
@@ -59,6 +62,8 @@ Each adapter implements `AdaptadorFormato` (`base.py`) with `validar(path)` and 
 Product code is assembled from three columns: `LÍNEA(3-padded) + GRUPO(4-padded) + CÓDIGO(6-padded)` → 13-char string matching `Producto.producto`.
 
 To add a new format: create `core/adaptadores/<name>/` with an `__init__.py` that instantiates and calls `@registrar`.
+
+`core/adaptadores/api_siigo/convertir.py` (`filas_a_documentos_internos`) is a second adapter for SIIGO's JSON row format, but it is *not* registered through this file-upload registry — it's called directly by `cargar_ingesta` (see below), since the ingestion arrives as parsed JSON, not a file to `validar`/`parse`.
 
 ### Internal model (`core/adaptadores/modelo_interno.py`)
 
@@ -116,3 +121,20 @@ Key-value store managed in Django admin. Keys used by `generar_archivo.py`: `pun
 ### Corte suggestion heuristic
 
 `cortes/servicios/corte_por_hora.py`: returns `2` if current Bogotá time < 12:00, else `1`. Corte 2 = mañana, Corte 1 = tarde. Used as default in the upload form.
+
+### SIIGO ingestion (`integraciones_siigo`)
+
+An alternate entry point to the corte lifecycle: `POST /api/v1/siigo/ingestions` accepts a JSON payload from an external SIIGO extraction job instead of a spreadsheet upload.
+
+- Auth: `Authorization: Bearer <token>` checked against one or more SHA-256 hashes in `SIIGO_INGEST_TOKEN_SHA256` (comma-separated, supports rotation). Request also requires an `X-Content-SHA256` header matching the raw body hash, and an `Idempotency-Key` header equal to the payload's `extraction_id`.
+- Payload is validated field-by-field (`_validate_payload` in `integraciones_siigo/views.py`), including recomputing `rows_sha256` from the canonicalized `rows` array to detect tampering, then stored verbatim as `IngestionSiigo` (dedup key: unique `extraction_id`, plus a `rows_sha256` index used later for corte-level dedup).
+- The endpoint only *receives and stores* the ingestion (returns `202`/`200 duplicate`); it does **not** create a `Corte`. Turning an `IngestionSiigo` into a `Corte` is a separate, manual step: `cargar_ingesta()` (`cortes/servicios/cargar_ingesta.py`), invoked from the Django admin action "Crear corte desde esta ingesta" on `IngestionSiigo`. It converts `payload["rows"]` via `filas_a_documentos_internos`, dedups on `Corte.hash_sha256 == ingestion.rows_sha256`, and otherwise follows the same `procesar_documentos_internos` → `en_revision` path as a normal upload.
+- **Billing windows:** rows may carry `fecha_actualizacion` (YYYYMMDD, SIIGO col AM) and `hora_actualizacion` (HHMMSS, col AN). Each document takes the earliest time of its rows, and `cargar_ingesta` keeps only documents inside `ventana_corte()` (`cortes/servicios/corte_por_hora.py`): Corte 2 = [16:00 previous day, 11:00), Corte 1 = [11:00, 16:00), Bogotá local time. Documents without a time are always kept. If no `numero_corte` is given, it is derived from `ingestion.generated_at`.
+
+### Vigia read-only API (`api_vigia`)
+
+Read-only JSON API under `/api/v1/vigia/` for external systems to pull *already-generated* cortes (`estado="generado"` only — nothing in `cargado`/`en_revision` is ever exposed).
+
+- Auth (`api_vigia/auth.py`, `@autenticar_vigia`): `Authorization: Bearer vigia_<identificador>_<secret>` checked against `CredencialVigia.token_sha256`, plus an optional per-credential IP allowlist (`ips_permitidas`, CIDR-aware). Credentials are created via `manage.py crear_credencial_vigia`. `ultimo_uso_en`/`ultima_ip` are throttled to update at most every 30s.
+- Endpoints: `GET cortes` (cursor-paginated list, filterable by `fecha_desde/hasta` and `actualizado_desde`), `GET cortes/<id>` (full detail with paginated `documentos`, supports `If-None-Match`/`ETag` caching keyed off the latest `CorteVersion.archivo_hash`), `GET documentos` (cross-corte documents for a given day, filterable by `tipo`).
+- Row serialization reuses `cortes/servicios/generar_archivo.py::construir_fila_salida` so the API reflects the exact same output columns as the generated XLS.

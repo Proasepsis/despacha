@@ -13,7 +13,7 @@ from cortes.servicios.cargar import (
     ErrorSugerirAdicional,
     _siguiente_letra_adicional,
 )
-from cortes.servicios.corte_por_hora import sugerir_corte
+from cortes.servicios.corte_por_hora import sugerir_corte, ventana_corte
 from cortes.servicios.procesar import (
     procesar_documentos_internos,
     ResultadoProcesamiento,
@@ -45,8 +45,22 @@ def cargar_ingesta(
     if existente:
         raise ErrorDuplicado(corte_existente_id=existente.pk)
 
-    numero = numero_corte or sugerir_corte()
+    # Sin número explícito, se deduce de cuándo se extrajo (11:00 → corte 2, 16:00 → corte 1)
+    numero = numero_corte or sugerir_corte(ingestion.generated_at)
     fecha_corte = _coerce_date(fecha) or _coerce_date(ingestion.window_end)
+
+    # Solo los documentos de la franja del corte; los que no traen hora se conservan
+    inicio, fin = ventana_corte(fecha_corte, numero)
+    habia_documentos = bool(documentos)
+    documentos = [
+        d for d in documentos
+        if d.actualizado_en is None or inicio <= d.actualizado_en < fin
+    ]
+    if habia_documentos and not documentos:
+        raise ErrorCarga(
+            f"La ingesta no tiene documentos en la franja del corte {numero} "
+            f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
+        )
 
     if not es_adicional:
         if Corte.objects.filter(

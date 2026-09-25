@@ -5,16 +5,16 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from cortes.models import Corte
-from cortes.servicios.cargar import ErrorDuplicado
+from cortes.servicios.cargar import ErrorCarga, ErrorDuplicado
 from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta
 from integraciones_siigo.models import IngestionSiigo
 
 
-def _fila():
-    return {
+def _fila(numero="56321", fecha=None, hora=None):
+    fila = {
         "tipo_comprobante": "F",
         "codigo_comprobante": "001",
-        "numero_documento": "56321",
+        "numero_documento": numero,
         "cuenta_contable": "1430462000",
         "debito_credito": "C",
         "valor_secuencia": 1000,
@@ -31,6 +31,10 @@ def _fila():
         "descripcion_secuencia": "ASEPTIGERM JAB ANTIB ESP",
         "sucursal": "0",
     }
+    if fecha is not None:
+        fila["fecha_actualizacion"] = fecha
+        fila["hora_actualizacion"] = hora
+    return fila
 
 
 class CargarIngestaTests(TestCase):
@@ -68,3 +72,63 @@ class CargarIngestaTests(TestCase):
     def test_no_repite_misma_fotografia(self):
         cargar_ingesta(self.ingestion, self.usuario, numero_corte=1)
         assert Corte.objects.count() == 1
+
+
+class FranjaHorariaTests(TestCase):
+    """Corte 2 = [16:00 del día anterior, 11:00); Corte 1 = [11:00, 16:00)."""
+
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user("operador", password="x")
+
+    def _ingesta(self, filas):
+        return IngestionSiigo.objects.create(
+            extraction_id=uuid.uuid4(), schema_version="1.0", source="siigo",
+            window_start=date(2026, 9, 23), window_end=date(2026, 9, 24),
+            generated_at=datetime(2026, 9, 24, 16, 0), raw_sha256="a" * 64, raw_size_bytes=1,
+            content_sha256="b" * 64, rows_sha256=uuid.uuid4().hex * 2, row_count=len(filas),
+            payload={"rows": filas},
+        )
+
+    def _facturas(self, corte):
+        return sorted(corte.documentos.values_list("factura", flat=True))
+
+    def test_cada_corte_toma_solo_su_franja(self):
+        filas = [
+            _fila("A_ayer_1559", 20260923, 155959),  # corte 1 de ayer: fuera de ambos
+            _fila("B_ayer_1600", 20260923, 160000),  # corte 2
+            _fila("C_hoy_0919", "20260924", "91931"),  # corte 2 (hora de 5 dígitos)
+            _fila("D_hoy_1100", 20260924, 110000),  # corte 1
+            _fila("E_hoy_1559", 20260924, 155959),  # corte 1
+            _fila("F_hoy_1600", 20260924, 160000),  # corte 2 de mañana: fuera de ambos
+            _fila("G_sin_hora"),  # sin hora: se conserva siempre
+        ]
+        corte2, _ = cargar_ingesta(self._ingesta(filas), self.usuario, numero_corte=2, fecha=date(2026, 9, 24))
+        corte1, _ = cargar_ingesta(self._ingesta(filas), self.usuario, numero_corte=1, fecha=date(2026, 9, 24))
+
+        assert self._facturas(corte2) == ["B_ayer_1600", "C_hoy_0919", "G_sin_hora"]
+        assert self._facturas(corte1) == ["D_hoy_1100", "E_hoy_1559", "G_sin_hora"]
+
+    def test_documento_usa_la_hora_de_su_primera_fila(self):
+        filas = [_fila("X", 20260924, 110005), _fila("X", 20260924, 105958)]
+        corte2, _ = cargar_ingesta(self._ingesta(filas), self.usuario, numero_corte=2, fecha=date(2026, 9, 24))
+        assert self._facturas(corte2) == ["X"]
+
+    def test_error_si_ningun_documento_cae_en_la_franja(self):
+        filas = [_fila("Z", 20260924, 170000)]
+        with self.assertRaises(ErrorCarga):
+            cargar_ingesta(self._ingesta(filas), self.usuario, numero_corte=1, fecha=date(2026, 9, 24))
+        assert Corte.objects.count() == 0
+
+    def test_sin_numero_se_deduce_de_la_hora_de_extraccion(self):
+        from datetime import timezone as tz
+        filas = [_fila("M", 20260924, 90000), _fila("T", 20260924, 130000)]
+        manana = self._ingesta(filas)
+        manana.generated_at = datetime(2026, 9, 24, 16, 0, tzinfo=tz.utc)  # 11:00 Bogotá
+        tarde = self._ingesta(filas)
+        tarde.generated_at = datetime(2026, 9, 24, 21, 0, tzinfo=tz.utc)  # 16:00 Bogotá
+
+        corte2, _ = cargar_ingesta(manana, self.usuario, fecha=date(2026, 9, 24))
+        corte1, _ = cargar_ingesta(tarde, self.usuario, fecha=date(2026, 9, 24))
+
+        assert (corte2.numero_corte, self._facturas(corte2)) == (2, ["M"])
+        assert (corte1.numero_corte, self._facturas(corte1)) == (1, ["T"])
