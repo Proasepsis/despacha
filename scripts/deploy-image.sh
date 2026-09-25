@@ -35,7 +35,12 @@ if [[ ! -f "$compose_file" || ! -r "$target/.env" ]]; then
     exit 2
 fi
 
-docker pull "$requested_image"
+# La red del servidor pierde conexión con ghcr.io por momentos; se reintenta antes de fallar
+for intento in 1 2 3 4; do
+    docker pull "$requested_image" && break
+    [[ $intento == 4 ]] && exit 1
+    sleep $((intento * 15))
+done
 resolved_image="$(
     docker image inspect "$requested_image" --format '{{range .RepoDigests}}{{println .}}{{end}}' |
         awk '/^ghcr\.io\/proasepsis\/despacha@sha256:/ { print; exit }'

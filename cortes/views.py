@@ -221,7 +221,19 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
         es_editor = bool(grupos & {"almacenamiento", "admin"})
         puede_eliminar = bool(grupos & {"facturacion", "admin"}) and corte.estado == "en_revision"
 
-        documentos = corte.documentos.prefetch_related("lineas").all()
+        documentos = list(corte.documentos.prefetch_related("lineas").all())
+
+        # Mismo número y tipo ya cargado en otro corte (un reproceso de SIIGO, por ejemplo)
+        ya_subidos: dict[tuple[str, str], list[Corte]] = {}
+        otros = (
+            Documento.objects.filter(factura__in={d.factura for d in documentos})
+            .exclude(corte=corte)
+            .select_related("corte")
+            .order_by("corte__fecha", "corte__numero_corte")
+        )
+        for otro in otros:
+            ya_subidos.setdefault((otro.factura, otro.tipo_comprobante), []).append(otro.corte)
+
         docs_data = []
         for doc in documentos:
             lineas_data = []
@@ -248,6 +260,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                 "observaciones": doc.observaciones,
                 "subsanar_novedad": doc.subsanar_novedad,
                 "factura_sufijo": doc.factura_sufijo,
+                "ya_subido_en": ya_subidos.get((doc.factura, doc.tipo_comprobante), []),
                 "lineas": lineas_data,
             })
 

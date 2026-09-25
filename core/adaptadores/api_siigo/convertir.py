@@ -8,6 +8,7 @@ los mismos cortes que la vía de archivo, sin duplicar lógica de negocio.
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from core.adaptadores.modelo_interno import DocumentoInterno, LineaInterna
@@ -43,6 +44,18 @@ def _armar_codigo_producto(linea, grupo, codigo) -> str:
     except (ValueError, TypeError):
         return ""
     return linea.zfill(3) + grupo.zfill(4) + codigo.zfill(6)
+
+
+def _fecha_hora_actualizacion(fila) -> datetime | None:
+    """Une ``fecha_actualizacion`` (AAAAMMDD) y ``hora_actualizacion`` (HHMMSS, p.ej. 91931)."""
+    fecha = "".join(c for c in _txt(fila.get("fecha_actualizacion")) if c.isdigit())
+    hora = "".join(c for c in _txt(fila.get("hora_actualizacion")) if c.isdigit())
+    if len(fecha) != 8 or not hora or len(hora) > 6:
+        return None
+    try:
+        return datetime.strptime(fecha + hora.zfill(6), "%Y%m%d%H%M%S")
+    except ValueError:
+        return None
 
 
 def _es_movimiento_vigia(fila) -> bool:
@@ -131,5 +144,11 @@ def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
                 sucursal=_txt(fila.get("sucursal")).strip(),
             )
         documentos[num_doc].lineas.append(linea)
+
+        # El documento toma la hora de su primera fila registrada
+        actualizado = _fecha_hora_actualizacion(fila)
+        doc = documentos[num_doc]
+        if actualizado and (doc.actualizado_en is None or actualizado < doc.actualizado_en):
+            doc.actualizado_en = actualizado
 
     return list(documentos.values())

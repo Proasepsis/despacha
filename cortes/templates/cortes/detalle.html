@@ -46,8 +46,8 @@
 {% for doc in documentos_data %}
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.75rem;overflow:hidden;">
 
-    <div data-doc-header data-doc-id="{{ doc.id }}" style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;background:var(--surface-raised);border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+    <div data-doc-header data-doc-id="{{ doc.id }}" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem .75rem;padding:.5rem 1rem;background:var(--surface-raised);border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;flex:1 1 20rem;min-width:0;">
             {% if puede_eliminar %}
             <input type="checkbox" class="sel-eliminar" value="{{ doc.id }}" data-factura="{{ doc.factura }}"
                    onchange="actualizarSeleccion()" title="Seleccionar para eliminar" aria-label="Seleccionar {{ doc.factura }}"
@@ -58,10 +58,14 @@
             <span style="display:inline-flex;align-items:center;justify-content:center;height:24px;min-width:24px;background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:0 .45rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);">{{ doc.tipo_comprobante }}</span>
             {% endif %}
             <span style="display:inline-flex;align-items:center;justify-content:center;height:24px;background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:0 .45rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);white-space:nowrap;">{{ doc.lineas|length }} líneas</span>
+            {% for otro in doc.ya_subido_en %}
+            <a href="{% url 'detalle_corte' otro.pk %}" class="ya-subido" title="Este documento ya fue subido en {{ otro.display_corte }} del {{ otro.fecha|date:'d M Y' }} ({{ otro.get_estado_display }})"
+               style="display:inline-flex;align-items:center;height:24px;border:1px dashed var(--border-mid);border-radius:20px;padding:0 .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap;text-decoration:none;">↺ ya en {{ otro.display_corte }} · {{ otro.fecha|date:"d M" }}</a>
+            {% endfor %}
             <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">NIT {{ doc.nit }}{% if doc.cliente_nombre %} — {{ doc.cliente_nombre }}{% endif %}{% if doc.sucursal %} · Suc {{ doc.sucursal }}{% endif %}</span>
         </div>
 
-        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:nowrap;flex-shrink:0;margin-left:auto;">
             {% if es_editor %}
             <label style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:.2rem;height:28px;">
                 EMB

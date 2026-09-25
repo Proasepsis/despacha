@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 
 
@@ -18,3 +19,5 @@ class DocumentoInterno:
     tipo_comprobante: str = ""
     sucursal: str = ""
     lineas: list[LineaInterna] = field(default_factory=list)
+    # Hora local de Bogotá (sin tz) en que SIIGO registró el documento; None si la fuente no la trae
+    actualizado_en: datetime | None = None
