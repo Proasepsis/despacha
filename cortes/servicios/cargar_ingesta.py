@@ -43,6 +43,9 @@ def cargar_ingesta(
     """
     filas = ingestion.payload.get("rows", [])
     documentos = filas_a_documentos_internos(filas)
+    # Un envío sin movimiento (rows vacío, o nada que aplique a Despacha) queda registrado, pero no crea corte
+    if not documentos:
+        raise ErrorCarga("La ingesta no trae documentos para Despacha; no se crea corte.")
 
     hash_sha256 = ingestion.rows_sha256
     existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
@@ -63,12 +66,11 @@ def cargar_ingesta(
 
         # Solo los documentos de la franja del corte; los que no traen hora se conservan
         inicio, fin = ventana_corte(fecha_corte, numero)
-        habia_documentos = bool(documentos)
         documentos = [
             d for d in documentos
             if d.actualizado_en is None or inicio <= d.actualizado_en < fin
         ]
-        if habia_documentos and not documentos:
+        if not documentos:
             raise ErrorCarga(
                 f"La ingesta no tiene documentos en la franja del corte {numero} "
                 f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."

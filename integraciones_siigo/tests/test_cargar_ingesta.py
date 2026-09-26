@@ -189,3 +189,19 @@ class MismoNumeroDistintoTipoTests(TestCase):
         assert set(docs) == {"F", "T"}
         assert docs["F"].lineas.get().cantidad_origen == 16
         assert docs["T"].lineas.get().cantidad_origen == 3
+
+
+class IngestaVaciaTests(TestCase):
+    def test_rows_vacio_no_crea_corte(self):
+        usuario = get_user_model().objects.create_user("operador", password="x")
+        ingesta = IngestionSiigo.objects.create(
+            extraction_id=uuid.uuid4(), schema_version="1.1", source="siigo",
+            window_start=date(2026, 9, 24), window_end=date(2026, 9, 25),
+            generated_at=datetime(2026, 9, 25, 21, 0), raw_sha256="a" * 64, raw_size_bytes=1,
+            content_sha256="b" * 64, rows_sha256="f" * 64, row_count=0,
+            payload={"rows": [], "cut": {"nombre": "corte_2", "desde": "2026-09-25T11:00:05-05:00",
+                                         "hasta": "2026-09-25T16:00:00-05:00"}},
+        )
+        with self.assertRaises(ErrorCarga):
+            cargar_ingesta(ingesta, usuario)
+        assert Corte.objects.count() == 0
