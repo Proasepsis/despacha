@@ -132,6 +132,7 @@ An alternate entry point to the corte lifecycle: `POST /api/v1/siigo/ingestions`
 - **Billing windows:** rows may carry `fecha_actualizacion` (YYYYMMDD, SIIGO col AM) and `hora_actualizacion` (HHMMSS, col AN). Each document takes the earliest time of its rows, and `cargar_ingesta` keeps only documents inside `ventana_corte()` (`cortes/servicios/corte_por_hora.py`): Corte 2 = [16:00 previous day, 11:00), Corte 1 = [11:00, 16:00), Bogotá local time. Documents without a time are always kept. If no `numero_corte` is given, it is derived from `ingestion.generated_at`.
 - **Schema 1.1 (extractor v0.2):** the endpoint accepts `schema_version` `"1.0"` and `"1.1"`. A 1.1 payload carries `cut = {nombre, desde, hasta, ...}`: the extractor already filtered rows to `(desde, hasta]`, so `cargar_ingesta` does not re-filter, takes the corte date from `cut.hasta` (Bogotá), and maps names, which run opposite to Despacha's: `corte_1` (11:00 run, morning) → Corte 2, `corte_2` (16:00 run, afternoon) → Corte 1. `extra`/`recuperacion` fall back to `generated_at`.
 - Documents are grouped by `(tipo_comprobante, codigo_comprobante, numero_documento)` in both adapters: the same number can exist as `F` and `T`.
+- An ingestion with no applicable documents (e.g. `rows: []`, a cut with no movement) is stored but creates no corte: `cargar_ingesta` raises `ErrorCarga`. A document re-sent in a later cut is not merged; it is created again and the detail view marks it "ya en Corte X".
 
 ### Vigia read-only API (`api_vigia`)
 
