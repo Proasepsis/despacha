@@ -111,3 +111,35 @@ class IngestionTests(TestCase):
         self.payload["raw_file"]["sha256"] = "d" * 64
         response = self._post()
         self.assertEqual(response.status_code, 409)
+
+    def _schema_1_1(self, **cut):
+        self.payload["schema_version"] = "1.1"
+        self.payload["cut"] = {
+            "nombre": "corte_1",
+            "desde": "2026-09-24T16:00:00-05:00",
+            "hasta": "2026-09-25T11:00:05-05:00",
+            "criterio": "fecha_actualizacion+hora_actualizacion en (desde, hasta]",
+            "filas_sin_fecha_actualizacion": 0,
+            **cut,
+        }
+
+    def test_accepts_schema_1_1_with_cut(self):
+        self._schema_1_1()
+        self.assertEqual(self._post().status_code, 202)
+        self.assertEqual(IngestionSiigo.objects.get().payload["cut"]["nombre"], "corte_1")
+
+    def test_rejects_unknown_schema_version(self):
+        self.payload["schema_version"] = "2.0"
+        self.assertEqual(self._post().status_code, 400)
+
+    def test_rejects_invalid_cut(self):
+        for cut in (
+            {"nombre": "corte_3"},
+            {"desde": "2026-09-24T16:00:00"},  # sin zona horaria
+            {"hasta": "2026-09-24T15:00:00-05:00"},  # hasta antes de desde
+        ):
+            with self.subTest(cut=cut):
+                self.setUp()
+                self._schema_1_1(**cut)
+                self.assertEqual(self._post().status_code, 400)
+        self.assertEqual(IngestionSiigo.objects.count(), 0)

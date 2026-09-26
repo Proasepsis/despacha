@@ -156,8 +156,8 @@ class AdaptadorPlantilla(AdaptadorFormato):
             if idx:
                 col_idx[esperada] = idx
 
-        # Agrupar líneas por documento
-        documentos: dict[str, DocumentoInterno] = {}
+        # Agrupar líneas por documento; un mismo número puede repetirse entre tipos o códigos
+        documentos: dict[tuple[str, int, str], DocumentoInterno] = {}
 
         def _celda(fila, nombre):
             idx = col_idx.get(nombre, 0)
@@ -229,15 +229,16 @@ class AdaptadorPlantilla(AdaptadorFormato):
                 descripcion_origen=descripcion,
             )
 
-            if num_doc not in documentos:
-                documentos[num_doc] = DocumentoInterno(
+            clave = (tipo_comprobante, codigo_int, num_doc)
+            if clave not in documentos:
+                documentos[clave] = DocumentoInterno(
                     factura=num_doc,
                     nit=nit,
                     codigo_ciudad=codigo_ciudad,
                     tipo_comprobante=tipo_comprobante,
                     sucursal=sucursal,
                 )
-            documentos[num_doc].lineas.append(linea)
+            documentos[clave].lineas.append(linea)
 
         wb.close()
         return list(documentos.values())
