@@ -116,7 +116,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "/admin/login/"
+LOGIN_URL = "/login/"
 
 SESSION_COOKIE_AGE = 8 * 3600
 SESSION_SAVE_EVERY_REQUEST = True

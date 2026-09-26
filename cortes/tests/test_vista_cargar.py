@@ -78,7 +78,7 @@ class VistaCargarTest(TestCase):
 
     def test_login_obligatorio(self):
         response = self.client.get(reverse("cargar_corte"))
-        self.assertRedirects(response, "/admin/login/?next=/cortes/cargar/")
+        self.assertRedirects(response, "/login/?next=/cortes/cargar/")
 
     def test_consulta_no_puede_cargar(self):
         self.client.login(username="consulta", password="test")
