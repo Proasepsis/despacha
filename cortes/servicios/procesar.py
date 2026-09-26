@@ -56,7 +56,6 @@ def procesar_documentos_internos(
 
     documentos_a_crear: list[Documento] = []
     lineas_a_crear: list[Linea] = []
-    documento_map: dict[tuple, Documento] = {}
 
     for doc_interno in documentos:
         ciudad = ciudades_map.get(doc_interno.codigo_ciudad)
@@ -70,7 +69,6 @@ def procesar_documentos_internos(
             ciudad=ciudad,
         )
         documentos_a_crear.append(doc)
-        documento_map[(corte.id, doc_interno.factura)] = doc
 
     Documento.objects.bulk_create(documentos_a_crear)
 
@@ -91,8 +89,8 @@ def procesar_documentos_internos(
         if docs_a_actualizar:
             Documento.objects.bulk_update(docs_a_actualizar, ["cliente"])
 
-    for doc_interno in documentos:
-        doc = documento_map[(corte.id, doc_interno.factura)]
+    # Se empareja por posición: el número de factura puede repetirse entre tipos (F 603 y T 603)
+    for doc_interno, doc in zip(documentos, documentos_a_crear):
 
         for linea_interna in doc_interno.lineas:
             codigo = linea_interna.producto_codigo

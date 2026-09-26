@@ -132,3 +132,60 @@ class FranjaHorariaTests(TestCase):
 
         assert (corte2.numero_corte, self._facturas(corte2)) == (2, ["M"])
         assert (corte1.numero_corte, self._facturas(corte1)) == (1, ["T"])
+
+
+class Schema11Tests(TestCase):
+    """Payloads v0.2 del extractor: traen ``cut`` y ya vienen filtrados por su ventana (desde, hasta]."""
+
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user("operador", password="x")
+
+    def _ingesta(self, nombre, desde, hasta, filas):
+        return IngestionSiigo.objects.create(
+            extraction_id=uuid.uuid4(), schema_version="1.1", source="siigo",
+            window_start=date(2026, 9, 23), window_end=date(2026, 9, 25),
+            generated_at=datetime(2026, 9, 25, 21, 0), raw_sha256="a" * 64, raw_size_bytes=1,
+            content_sha256="b" * 64, rows_sha256=uuid.uuid4().hex * 2, row_count=len(filas),
+            payload={"rows": filas, "cut": {"nombre": nombre, "desde": desde, "hasta": hasta}},
+        )
+
+    def test_corte_1_del_extractor_es_el_corte_2_de_despacha_y_no_se_refiltra(self):
+        # 11:00:03 cae fuera de la franja fija [16:00, 11:00) pero el extractor la incluyó: no se pierde
+        filas = [_fila("A", "20260924", "160001"), _fila("B", "20260925", "110003")]
+        ingesta = self._ingesta("corte_1", "2026-09-24T16:00:00-05:00", "2026-09-25T11:00:05-05:00", filas)
+
+        corte, _ = cargar_ingesta(ingesta, self.usuario)
+
+        assert (corte.numero_corte, corte.fecha) == (2, date(2026, 9, 25))
+        assert sorted(corte.documentos.values_list("factura", flat=True)) == ["A", "B"]
+
+    def test_corte_2_del_extractor_es_el_corte_1_de_despacha(self):
+        # 16:00:00 exacto: el extractor lo pone en la tarde (hasta incluido); la franja fija lo habría descartado
+        filas = [_fila("C", "20260925", "160000")]
+        ingesta = self._ingesta("corte_2", "2026-09-25T11:00:05-05:00", "2026-09-25T16:00:00-05:00", filas)
+
+        corte, _ = cargar_ingesta(ingesta, self.usuario)
+
+        assert (corte.numero_corte, corte.fecha) == (1, date(2026, 9, 25))
+        assert list(corte.documentos.values_list("factura", flat=True)) == ["C"]
+
+
+class MismoNumeroDistintoTipoTests(TestCase):
+    def test_factura_y_traslado_con_el_mismo_numero_son_documentos_distintos(self):
+        usuario = get_user_model().objects.create_user("operador", password="x")
+        factura = _fila("603")
+        traslado = {**_fila("603"), "tipo_comprobante": "T", "codigo_comprobante": "10", "cantidad": 3}
+        ingesta = IngestionSiigo.objects.create(
+            extraction_id=uuid.uuid4(), schema_version="1.0", source="siigo",
+            window_start=date(2026, 9, 25), window_end=date(2026, 9, 25),
+            generated_at=datetime(2026, 9, 25, 12, 0), raw_sha256="a" * 64, raw_size_bytes=1,
+            content_sha256="b" * 64, rows_sha256="e" * 64, row_count=2,
+            payload={"rows": [factura, traslado]},
+        )
+
+        corte, _ = cargar_ingesta(ingesta, usuario, numero_corte=1)
+
+        docs = {d.tipo_comprobante: d for d in corte.documentos.all()}
+        assert set(docs) == {"F", "T"}
+        assert docs["F"].lineas.get().cantidad_origen == 16
+        assert docs["T"].lineas.get().cantidad_origen == 3

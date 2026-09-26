@@ -79,7 +79,8 @@ def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
     5. Solo bodega 400 Y ubicación 5 (comparadas como enteros).
     6. Producto reconstruido como línea(3)+grupo(4)+código(6).
     """
-    documentos: dict[str, DocumentoInterno] = {}
+    # Un mismo número puede repetirse entre tipos o códigos (p.ej. F 603 y T 603): son documentos distintos
+    documentos: dict[tuple[str, int, str], DocumentoInterno] = {}
 
     for fila in filas:
         descripcion_orig = _txt(fila.get("descripcion_secuencia")).strip()
@@ -135,19 +136,20 @@ def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
             descripcion_origen=descripcion_orig,
         )
 
-        if num_doc not in documentos:
-            documentos[num_doc] = DocumentoInterno(
+        clave = (tipo, codigo_int, num_doc)
+        if clave not in documentos:
+            documentos[clave] = DocumentoInterno(
                 factura=num_doc,
                 nit=_txt(fila.get("nit")).strip(),
                 codigo_ciudad=_txt(fila.get("codigo_ciudad")).strip(),
                 tipo_comprobante=tipo,
                 sucursal=_txt(fila.get("sucursal")).strip(),
             )
-        documentos[num_doc].lineas.append(linea)
+        doc = documentos[clave]
+        doc.lineas.append(linea)
 
         # El documento toma la hora de su primera fila registrada
         actualizado = _fecha_hora_actualizacion(fila)
-        doc = documentos[num_doc]
         if actualizado and (doc.actualizado_en is None or actualizado < doc.actualizado_en):
             doc.actualizado_en = actualizado
 

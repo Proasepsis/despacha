@@ -15,6 +15,8 @@ from .models import IngestionSiigo
 
 
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+SCHEMAS_SOPORTADOS = {"1.0", "1.1"}
+NOMBRES_CUT = {"corte_1", "corte_2", "extra", "recuperacion"}
 
 
 @csrf_exempt
@@ -91,8 +93,10 @@ def _validate_payload(payload, idempotency_key):
     extraction_id = uuid.UUID(str(payload["extraction_id"]))
     if not hmac.compare_digest(str(extraction_id), idempotency_key or ""):
         raise ValueError("Idempotency-Key no coincide con extraction_id")
-    if payload["schema_version"] != "1.0":
+    if payload["schema_version"] not in SCHEMAS_SOPORTADOS:
         raise ValueError("schema_version no soportada")
+    if "cut" in payload:
+        _validate_cut(payload["cut"])
     if payload["source"] != "siigo":
         raise ValueError("source no soportado")
 
@@ -141,6 +145,18 @@ def _validate_payload(payload, idempotency_key):
         "rows_sha256": rows_sha256,
         "row_count": row_count,
     }
+
+
+def _validate_cut(cut):
+    """Corte que ya aplicó el extractor (schema 1.1): nombre y ventana (desde, hasta]."""
+    if not isinstance(cut, dict) or cut.get("nombre") not in NOMBRES_CUT:
+        raise ValueError("cut.nombre inválido")
+    desde = parse_datetime(str(cut.get("desde", "")))
+    hasta = parse_datetime(str(cut.get("hasta", "")))
+    if desde is None or hasta is None or desde.tzinfo is None or hasta.tzinfo is None:
+        raise ValueError("cut.desde/cut.hasta deben ser fechas con zona horaria")
+    if hasta <= desde:
+        raise ValueError("cut.hasta debe ser posterior a cut.desde")
 
 
 def _source_ip(request):

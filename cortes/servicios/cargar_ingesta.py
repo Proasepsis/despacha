@@ -4,7 +4,7 @@ from datetime import date as date_type
 
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_datetime
 
 from cortes.models import Corte
 from cortes.servicios.cargar import (
@@ -13,7 +13,7 @@ from cortes.servicios.cargar import (
     ErrorSugerirAdicional,
     _siguiente_letra_adicional,
 )
-from cortes.servicios.corte_por_hora import sugerir_corte, ventana_corte
+from cortes.servicios.corte_por_hora import BOGOTA, sugerir_corte, ventana_corte
 from cortes.servicios.procesar import (
     procesar_documentos_internos,
     ResultadoProcesamiento,
@@ -22,6 +22,10 @@ from core.adaptadores.api_siigo.convertir import filas_a_documentos_internos
 from core.servicios.notificaciones import notificar_sin_maestra_detectado
 
 FORMATO_API_SIIGO = "API_SIIGO"
+
+# El extractor llama corte_1 a la corrida de las 11:00 (mañana) y corte_2 a la de las 16:00 (tarde);
+# en Despacha la mañana es el Corte 2 y la tarde el Corte 1.
+NUMERO_POR_CUT = {"corte_1": 2, "corte_2": 1}
 
 
 @transaction.atomic
@@ -45,22 +49,30 @@ def cargar_ingesta(
     if existente:
         raise ErrorDuplicado(corte_existente_id=existente.pk)
 
-    # Sin número explícito, se deduce de cuándo se extrajo (11:00 → corte 2, 16:00 → corte 1)
-    numero = numero_corte or sugerir_corte(ingestion.generated_at)
-    fecha_corte = _coerce_date(fecha) or _coerce_date(ingestion.window_end)
+    cut = ingestion.payload.get("cut")
+    if cut:
+        # Schema 1.1: el extractor ya filtró por su ventana (desde, hasta]; no se vuelve a filtrar
+        # para no perder documentos en los bordes. Sus nombres van al revés de los de Despacha.
+        numero = numero_corte or NUMERO_POR_CUT.get(cut["nombre"]) or sugerir_corte(ingestion.generated_at)
+        hasta = parse_datetime(cut["hasta"]).astimezone(BOGOTA)
+        fecha_corte = _coerce_date(fecha) or hasta.date()
+    else:
+        # Sin número explícito, se deduce de cuándo se extrajo (11:00 → corte 2, 16:00 → corte 1)
+        numero = numero_corte or sugerir_corte(ingestion.generated_at)
+        fecha_corte = _coerce_date(fecha) or _coerce_date(ingestion.window_end)
 
-    # Solo los documentos de la franja del corte; los que no traen hora se conservan
-    inicio, fin = ventana_corte(fecha_corte, numero)
-    habia_documentos = bool(documentos)
-    documentos = [
-        d for d in documentos
-        if d.actualizado_en is None or inicio <= d.actualizado_en < fin
-    ]
-    if habia_documentos and not documentos:
-        raise ErrorCarga(
-            f"La ingesta no tiene documentos en la franja del corte {numero} "
-            f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
-        )
+        # Solo los documentos de la franja del corte; los que no traen hora se conservan
+        inicio, fin = ventana_corte(fecha_corte, numero)
+        habia_documentos = bool(documentos)
+        documentos = [
+            d for d in documentos
+            if d.actualizado_en is None or inicio <= d.actualizado_en < fin
+        ]
+        if habia_documentos and not documentos:
+            raise ErrorCarga(
+                f"La ingesta no tiene documentos en la franja del corte {numero} "
+                f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
+            )
 
     if not es_adicional:
         if Corte.objects.filter(
