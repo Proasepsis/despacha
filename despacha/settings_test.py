@@ -89,7 +89,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SIIGO_INGEST_TOKEN_SHA256 = ""
 DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
 
-LOGIN_URL = "/admin/login/"
+LOGIN_URL = "/login/"
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 DEFAULT_FROM_EMAIL = "test@local"
