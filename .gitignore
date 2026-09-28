@@ -18,5 +18,5 @@ logs/
 *.tar.gz
 *.swp
 backups/
-.claude/settings.local.json
+.claude/
 docs/superpowers/
