@@ -1,14 +1,27 @@
 from django import forms
+from django.utils import timezone
 
+from core.adaptadores.api_siigo.convertir import filas_a_documentos_internos
+from cortes.servicios.cargar_ingesta import NUMERO_POR_CUT
 from integraciones_siigo.models import IngestionSiigo
 
 
 class IngestionChoiceField(forms.ModelChoiceField):
+    documentos_por_ingesta: dict[int, int] = {}
+
     def label_from_instance(self, obj):
-        return (
-            f"{obj.window_start} → {obj.window_end} · "
-            f"{obj.row_count} filas · {obj.extraction_id}"
-        )
+        partes = [f"{timezone.localtime(obj.generated_at):%d/%m/%Y %H:%M}"]
+        nombre = (obj.payload.get("cut") or {}).get("nombre")
+        if nombre in NUMERO_POR_CUT:
+            partes.append(f"Corte {NUMERO_POR_CUT[nombre]}")
+        elif nombre == "recuperacion":
+            # El extractor manda una recuperación por día de documentos, todas a la misma hora
+            partes.append(f"Recuperación del {obj.window_start:%d/%m}")
+        elif nombre == "extra":
+            partes.append("Extra")
+        n = self.documentos_por_ingesta.get(obj.pk, 0)
+        partes.append(f"{n} documento{'' if n == 1 else 's'}")
+        return " · ".join(partes)
 
 
 class CargarCorteForm(forms.Form):
@@ -22,7 +35,7 @@ class CargarCorteForm(forms.Form):
         initial="PLANTILLA",
     )
     ingestion = IngestionChoiceField(
-        queryset=IngestionSiigo.objects.order_by("-recibido_en"),
+        queryset=IngestionSiigo.objects.none(),
         required=False,
         label="Ingesta SIIGO",
         empty_label="Seleccione una ingesta…",
@@ -32,6 +45,22 @@ class CargarCorteForm(forms.Form):
         help_text="Sugerido según la hora; puede ajustarse.",
     )
     es_adicional = forms.BooleanField(required=False, label="Es adicional")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Solo ingestas con documentos que Despacha puede procesar, con el mismo filtro de cargar_ingesta.
+        # ponytail: convierte todas las ingestas en cada carga del formulario; si la lista crece
+        # y se vuelve lenta, guardar el conteo al recibir la ingesta.
+        documentos = {
+            ingesta.pk: len(filas_a_documentos_internos(ingesta.payload.get("rows", [])))
+            for ingesta in IngestionSiigo.objects.filter(row_count__gt=0).only("pk", "payload")
+        }
+        campo = self.fields["ingestion"]
+        campo.documentos_por_ingesta = documentos
+        campo.queryset = (
+            IngestionSiigo.objects.filter(pk__in=[pk for pk, n in documentos.items() if n])
+            .order_by("-generated_at")
+        )
 
     def clean_archivo(self):
         archivo = self.cleaned_data.get("archivo")
