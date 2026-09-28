@@ -37,8 +37,8 @@ class CargarCorteForm(forms.Form):
     ingestion = IngestionChoiceField(
         queryset=IngestionSiigo.objects.none(),
         required=False,
-        label="Ingesta SIIGO",
-        empty_label="Seleccione una ingesta…",
+        label="Extracción SIIGO",
+        empty_label="Seleccione una extracción…",
     )
     numero_corte = forms.ChoiceField(
         choices=[(1, "Corte 1"), (2, "Corte 2")],
@@ -78,7 +78,7 @@ class CargarCorteForm(forms.Form):
         formato = cleaned.get("formato_origen")
         if formato == "API_SIIGO":
             if not cleaned.get("ingestion"):
-                self.add_error("ingestion", "Seleccione una ingesta SIIGO.")
+                self.add_error("ingestion", "Seleccione una extracción SIIGO.")
         elif formato == "PLANTILLA":
             if not cleaned.get("archivo"):
                 self.add_error("archivo", "Seleccione un archivo .xlsx.")
