@@ -97,6 +97,7 @@ def deshacer_split(documento_nuevo: Documento, usuario: User) -> None:
     ).update(documento=original, movida_desde=None)
 
     factura_original = documento_nuevo.factura
+    pk_borrado = documento_nuevo.pk
     documento_nuevo.delete()
 
     registrar_auditoria(
@@ -104,6 +105,6 @@ def deshacer_split(documento_nuevo: Documento, usuario: User) -> None:
         objeto_tipo="Documento",
         objeto_id=str(original.pk),
         tipo_evento="deshacer_split",
-        valor_anterior=f"Deshecho split {factura_original} (id={documento_nuevo.pk})",
+        valor_anterior=f"Deshecho split {factura_original} (id={pk_borrado})",
         valor_nuevo=f"{len(lineas)} líneas devueltas a {original.factura}",
     )

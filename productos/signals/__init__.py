@@ -1,7 +1,15 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 
 from productos.models import Producto
+
+
+@receiver(pre_save, sender=Producto)
+def capturar_valores_previos(sender, instance, **kwargs):
+    previo = Producto.objects.filter(pk=instance.pk).values("unidad_empaque", "activo").first()
+    if previo:
+        instance._pre_save_unidad_empaque = previo["unidad_empaque"]
+        instance._pre_save_activo = previo["activo"]
 
 
 @receiver(post_save, sender=Producto)
