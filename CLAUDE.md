@@ -55,9 +55,9 @@ A `Corte` is uniquely identified by `(fecha, numero_corte, adicional_letra)`. No
 Each adapter implements `AdaptadorFormato` (`base.py`) with `validar(path)` and `parse(path) -> list[DocumentoInterno]`. Adapters self-register via `@registrar` decorator from `registry.py`, which auto-discovers subdirectories on first use.
 
 **`AdaptadorPlantilla`** (the only existing adapter): reads `Hoja1`, headers on row 5. Filters rows by:
-- `TIPO DE COMPROBANTE` must be in `{"F", "H", "S", "T"}` with matching `CÓDIGO COMPROBANTE` (`F→1, H→5, S→1, T→10`)
+- `TIPO DE COMPROBANTE` must be in `{"F", "H", "S", "T"}` with matching `CÓDIGO COMPROBANTE` (`F→1, H→5, S→1, T→10 or 25`); `CODIGOS_PERMITIDOS` is shared with the SIIGO converter
 - `CUENTA CONTABLE` must start with `"14"`
-- `DÉBITO O CRÉDITO` must be `"C"` — except `T+10` (traslados) which accepts both `"D"` and `"C"`
+- `DÉBITO O CRÉDITO` must be `"C"` — except `T` (traslados) which accepts both `"D"` and `"C"`
 
 Product code is assembled from three columns: `LÍNEA(3-padded) + GRUPO(4-padded) + CÓDIGO(6-padded)` → 13-char string matching `Producto.producto`.
 
@@ -88,7 +88,7 @@ Each adapter implements `AdaptadorDestino` with `entregar(bytes, filename, corte
 
 ### Locking (`cortes/servicios/bloqueo.py`)
 
-Optimistic row-level lock on `Corte`. `intentar_tomar_bloqueo` succeeds if lock is free or expired. `refrescar_bloqueo` extends by 30 min. `liberar_bloqueo(forzado_por_admin=True)` records an audit event. Lock expiry is also cleared lazily in `info_bloqueo`.
+Optimistic row-level lock on `Corte`. `intentar_tomar_bloqueo` succeeds if lock is free or expired. `refrescar_bloqueo` extends by 30 min. `liberar_bloqueo(forzado_por_admin=True)` records an audit event. Lock expiry is also cleared lazily in `info_bloqueo`. **Not wired up:** no view calls `intentar_tomar_bloqueo`/`refrescar_bloqueo`/`info_bloqueo`; only the admin force-release uses `liberar_bloqueo`, so concurrent editors are last-write-wins per field.
 
 ### Document split (`cortes/servicios/split.py`)
 
