@@ -51,10 +51,14 @@ class CargarCorteForm(forms.Form):
         # Solo ingestas con documentos que Despacha puede procesar, con el mismo filtro de cargar_ingesta.
         # ponytail: convierte todas las ingestas en cada carga del formulario; si la lista crece
         # y se vuelve lenta, guardar el conteo al recibir la ingesta.
-        documentos = {
-            ingesta.pk: len(filas_a_documentos_internos(ingesta.payload.get("rows", [])))
-            for ingesta in IngestionSiigo.objects.filter(row_count__gt=0).only("pk", "payload")
-        }
+        documentos = {}
+        # Número de corte que corresponde a cada extracción (schema 1.1); el JS lo preselecciona
+        self.numero_por_ingesta = {}
+        for ingesta in IngestionSiigo.objects.filter(row_count__gt=0).only("pk", "payload"):
+            documentos[ingesta.pk] = len(filas_a_documentos_internos(ingesta.payload.get("rows", [])))
+            nombre = (ingesta.payload.get("cut") or {}).get("nombre")
+            if documentos[ingesta.pk] and nombre in NUMERO_POR_CUT:
+                self.numero_por_ingesta[str(ingesta.pk)] = NUMERO_POR_CUT[nombre]
         campo = self.fields["ingestion"]
         campo.documentos_por_ingesta = documentos
         campo.queryset = (
