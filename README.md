@@ -83,7 +83,7 @@ Cargado → En revisión → Generado
 |---|---|
 | `facturacion` | Cargar cortes y eliminar documentos de un corte en revisión |
 | `almacenamiento` | Revisar, editar, dividir documentos y generar |
-| `admin` | Todo lo anterior + forzar liberación de bloqueos |
+| `admin` | Todo lo anterior + configuración y auditoría |
 | `consulta` | Solo lectura |
 
 Guías de uso: [manual del operador](docs/manual-operador.md) y [manual del administrador](docs/manual-administrador.md).

@@ -9,7 +9,7 @@
 1. [Acceso al sistema](#1-acceso-al-sistema)
 2. [Roles y permisos](#2-roles-y-permisos)
 3. [Flujo completo de un corte](#3-flujo-completo-de-un-corte)
-4. [Liberación forzada de bloqueos](#4-liberación-forzada-de-bloqueos)
+4. [Edición simultánea](#4-edición-simultánea)
 5. [Gestión de usuarios (Django Admin)](#5-gestión-de-usuarios-django-admin)
 6. [Configuración del sistema](#6-configuración-del-sistema)
 7. [Notificaciones por correo](#7-notificaciones-por-correo)
@@ -33,11 +33,11 @@ Ingrese a la URL del sistema con sus credenciales de administrador.
 
 El sistema usa grupos de Django para controlar el acceso. Cada usuario debe pertenecer al menos a un grupo.
 
-| Grupo | Puede cargar cortes | Puede editar y generar | Puede forzar liberación | Accede a configuración |
-|---|---|---|---|---|
-| `facturacion` | ✅ | ❌ | ❌ | ❌ |
-| `almacenamiento` | ❌ | ✅ | ❌ | ❌ |
-| `admin` | ✅ | ✅ | ✅ | ✅ |
+| Grupo | Puede cargar cortes | Puede editar y generar | Accede a configuración |
+|---|---|---|---|
+| `facturacion` | ✅ | ❌ | ❌ |
+| `almacenamiento` | ❌ | ✅ | ❌ |
+| `admin` | ✅ | ✅ | ✅ |
 
 > Un usuario puede pertenecer a varios grupos simultáneamente.
 
@@ -78,14 +78,6 @@ Después de cargar exitosamente el corte queda en estado **Cargado** y aparece e
 Haga clic sobre cualquier corte en la lista para abrir la vista de detalle.
 
 ![Vista detalle del corte](./imagenes/admin-detalle-corte.png)
-
-#### Bloqueo de edición
-
-Al abrir un corte en estado **En revisión**, el sistema intenta tomar un bloqueo de 30 minutos a su nombre. Si otro usuario ya tiene el bloqueo activo verá un aviso con el nombre del usuario y el tiempo restante.
-
-![Aviso de bloqueo activo](./imagenes/admin-bloqueo-activo.png)
-
-> Como administrador puede **forzar la liberación** del bloqueo (ver sección 4).
 
 #### Presencia en tiempo real
 
@@ -163,19 +155,11 @@ El sistema:
 
 ---
 
-## 4. Liberación forzada de bloqueos
+## 4. Edición simultánea
 
-Exclusivo del rol `admin`.
+Los cortes no se bloquean. Varias personas pueden tenerlo abierto (la presencia muestra quiénes) y cada cambio se guarda campo por campo: si dos personas cambian el mismo campo del mismo documento, queda el último. Como facturación y almacenamiento editan cosas distintas, en la práctica no se pisan.
 
-Si un usuario tomó el bloqueo de un corte y no puede liberarlo (cerró el navegador, se fue, etc.):
-
-1. Abra el detalle del corte bloqueado.
-2. Haga clic en **Forzar liberación**.
-3. El bloqueo se libera inmediatamente y queda registrado en auditoría.
-
-![Forzar liberación](./imagenes/admin-forzar-liberacion.png)
-
-> El bloqueo también expira automáticamente después de **30 minutos** de inactividad, sin necesidad de forzarlo.
+Generar y eliminar documentos sí se hacen uno a la vez: si dos personas generan al mismo tiempo, la segunda espera a que termine la primera.
 
 ---
 
@@ -267,7 +251,7 @@ Las reglas asignan automáticamente el valor de **Clasificador 1** u **Observaci
 
 Acceda desde el menú **Auditoría**.
 
-Registra todas las acciones del sistema: ediciones, generaciones, splits, liberaciones forzadas, intentos de login fallidos y notificaciones fallidas.
+Registra todas las acciones del sistema: ediciones, generaciones, splits, eliminaciones, intentos de login fallidos y notificaciones fallidas.
 
 ![Vista de auditoría](./imagenes/admin-auditoria.png)
 

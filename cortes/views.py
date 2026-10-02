@@ -27,7 +27,6 @@ from cortes.servicios.cargar import (
     ErrorSugerirAdicional,
 )
 from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta
-from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
 from cortes.servicios.generar import generar_y_entregar
@@ -51,13 +50,6 @@ class EsAlmacenamientoOAdminMixin(UserPassesTestMixin):
 
     def test_func(self):
         return self.request.user.groups.filter(name__in=["almacenamiento", "admin"]).exists()
-
-
-class EsAdminMixin(UserPassesTestMixin):
-    raise_exception = True
-
-    def test_func(self):
-        return self.request.user.groups.filter(name="admin").exists()
 
 
 class ListaCortesView(LoginRequiredMixin, ListView):
@@ -479,13 +471,6 @@ class EliminarDocumentosView(LoginRequiredMixin, EsFacturacionOAdminMixin, View)
             corte.documentos.filter(pk__in=[d.pk for d in docs]).delete()
 
         return JsonResponse({"ok": True, "eliminados": [d.factura for d in docs]})
-
-
-class ForzarLiberacionView(LoginRequiredMixin, EsAdminMixin, View):
-    def post(self, request, pk):
-        corte = get_object_or_404(Corte, pk=pk)
-        liberar_bloqueo(corte, request.user, forzado_por_admin=True)
-        return JsonResponse({"ok": True})
 
 
 class GenerarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):

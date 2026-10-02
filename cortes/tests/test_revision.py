@@ -231,26 +231,6 @@ class VistaRevisionTest(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_forzar_liberacion_admin(self):
-        # Fijamos manualmente un bloqueo legacy para probar la liberación forzada
-        self.corte.bloqueado_por = self.almacenamiento
-        self.corte.bloqueado_hasta = timezone.now() + timedelta(minutes=30)
-        self.corte.save(update_fields=["bloqueado_por", "bloqueado_hasta"])
-
-        self.client.login(username="adm", password="test")
-        response = self.client.post(
-            reverse("forzar_liberacion", args=[self.corte.pk]),
-            "{}",
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.corte.refresh_from_db()
-        self.assertIsNone(self.corte.bloqueado_por)
-
-        auditoria = Auditoria.objects.filter(tipo_evento="forzar_liberacion").first()
-        self.assertIsNotNone(auditoria)
-
     def test_documento_campos_novedad_defaults(self):
         nuevo = Documento.objects.create(
             corte=self.corte,

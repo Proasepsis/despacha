@@ -43,7 +43,7 @@ Always use `settings_test` for local testing. `settings.py` requires a live Post
 States: `cargado` → `en_revision` → `generado` (or `con_error` at any point).
 
 1. **Cargar** (`cortes/servicios/cargar.py`): SHA-256 dedup → `Corte` created → adapter validates & parses → `procesar_documentos_internos` → state = `en_revision`. Triggers `notificar_sin_maestra_detectado` if unknown products found.
-2. **Revisar** (detail view): optimistic row-level locking via `bloqueado_por` / `bloqueado_hasta` (30-min timeout). Editors can modify `clasificador1`, `observaciones`, `subsanar_novedad`, `factura_sufijo` on `Documento`; `cantidad_unidades` on `Linea`. Document split/undo-split supported.
+2. **Revisar** (detail view): no lock, see [Concurrent editing](#concurrent-editing). Editors can modify `clasificador1`, `observaciones`, `subsanar_novedad`, `factura_sufijo` on `Documento`; `cantidad_unidades` on `Linea`. Document split/undo-split supported.
 3. **Generar** (`cortes/servicios/generar.py`): validates no `sin_maestro` lines → `generar_xls` → delivers to each destination → increments `version_actual` → state = `generado`. Sends email notifications.
 
 ### Corte uniqueness and additionals
@@ -86,9 +86,9 @@ Each adapter implements `AdaptadorDestino` with `entregar(bytes, filename, corte
 - **`descarga`**: browser download (returns bytes to the view).
 - **`drive`**: uploads to Google Drive via service account. Folder structure: `DRIVE_ROOT_FOLDER_ID / MONTH_NAME / DAY`. Retries 3 times with backoff (1s, 3s, 10s). Requires env vars `DRIVE_SERVICE_ACCOUNT_JSON` and `DRIVE_ROOT_FOLDER_ID`.
 
-### Locking (`cortes/servicios/bloqueo.py`)
+### Concurrent editing
 
-Optimistic row-level lock on `Corte`. `intentar_tomar_bloqueo` succeeds if lock is free or expired. `refrescar_bloqueo` extends by 30 min. `liberar_bloqueo(forzado_por_admin=True)` records an audit event. Lock expiry is also cleared lazily in `info_bloqueo`. **Not wired up:** no view calls `intentar_tomar_bloqueo`/`refrescar_bloqueo`/`info_bloqueo`; only the admin force-release uses `liberar_bloqueo`, so concurrent editors are last-write-wins per field.
+There is no edit lock (the old `bloqueo.py` was never wired up and was removed). Edits are saved per field, last write wins; `bloqueado_por`/`bloqueado_hasta` remain on `Corte` unused. `generar_y_entregar` and document deletion take `select_for_update` on the `Corte` row.
 
 ### Document split (`cortes/servicios/split.py`)
 
@@ -111,7 +111,7 @@ SMTP via Google Workspace. Recipients per event (corte_generado, corte_regenerad
 Four Django groups control access:
 - **`facturacion`** — can upload cortes (`CargarCorteView`)
 - **`almacenamiento`** — can edit documents/lines and generate output (`EditarCorteView`, `GenerarCorteView`, split operations)
-- **`admin`** — all of the above, plus force-release locks (`ForzarLiberacionView`)
+- **`admin`** — all of the above, plus config panel and audit log
 - Superuser setup via `DJANGO_SUPERUSER_*` env vars at container start.
 
 ### Configurable output parameters (`ParametroSalida`)
