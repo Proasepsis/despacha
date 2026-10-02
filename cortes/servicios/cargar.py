@@ -6,6 +6,7 @@ from pathlib import Path
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction, IntegrityError
+from django.utils import timezone
 
 from cortes.models import Corte
 from cortes.servicios.procesar import procesar_documentos_internos, ResultadoProcesamiento
@@ -76,7 +77,8 @@ def cargar_archivo(
     if existente:
         raise ErrorDuplicado(corte_existente_id=existente.pk)
 
-    fecha_corte = fecha or date.today()
+    # Fecha en hora de Bogotá: el contenedor corre en UTC y date.today() adelantaba el día desde las 19:00
+    fecha_corte = fecha or timezone.localdate()
 
     if not es_adicional:
         if Corte.objects.filter(fecha=fecha_corte, numero_corte=numero_corte, adicional_letra="").exists():

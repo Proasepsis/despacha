@@ -35,3 +35,26 @@ class SelectIngestasTest(TestCase):
         etiqueta = CargarCorteForm().fields["ingestion"].label_from_instance(recuperacion)
 
         assert etiqueta == "25/09/2026 21:49 · Recuperación del 24/09 · 1 documento"
+
+
+class NumeroPorIngestaTest(TestCase):
+    def test_mapea_cada_extraccion_a_su_numero_de_corte_despacha(self):
+        manana = _ingesta([_fila("1")], datetime(2026, 9, 25, 16, 0, tzinfo=timezone.utc), cut={"nombre": "corte_1"})
+        tarde = _ingesta([_fila("2")], datetime(2026, 9, 25, 21, 0, tzinfo=timezone.utc), cut={"nombre": "corte_2"})
+        _ingesta([_fila("3")], datetime(2026, 9, 26, 2, 0, tzinfo=timezone.utc), cut={"nombre": "extra"})
+
+        assert CargarCorteForm().numero_por_ingesta == {str(manana.pk): 2, str(tarde.pk): 1}
+
+    def test_la_pagina_de_carga_entrega_el_mapa_al_js(self):
+        from django.contrib.auth.models import Group, User
+        from django.urls import reverse
+
+        manana = _ingesta([_fila("1")], datetime(2026, 9, 25, 16, 0, tzinfo=timezone.utc), cut={"nombre": "corte_1"})
+        user = User.objects.create_user("fac")
+        user.groups.add(Group.objects.get_or_create(name="facturacion")[0])
+        self.client.force_login(user)
+
+        html = self.client.get(reverse("cargar_corte")).content.decode()
+
+        assert f'<script id="numero-por-ingesta" type="application/json">{{"{manana.pk}": 2}}</script>' in html
+        assert 'id="aviso-numero"' in html

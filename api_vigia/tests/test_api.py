@@ -321,3 +321,24 @@ class ApiVigiaTests(TestCase):
             nombre="abierta-deliberadamente"
         )
         self.assertEqual(creada_abierta.ips_permitidas, [])
+
+    def test_trusts_real_ip_from_docker_gateway(self):
+        # nginx -> 127.0.0.1:8000 -> docker-proxy: la app ve el gateway del bridge, no 127.0.0.1
+        self.credential.ips_permitidas = ["10.20.30.0/24"]
+        self.credential.save(update_fields=["ips_permitidas"])
+        response = self._get(
+            reverse("api_vigia:listar_cortes"),
+            REMOTE_ADDR="172.18.0.1",
+            HTTP_X_REAL_IP="10.20.30.5",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_etag_changes_when_generated_cut_is_edited(self):
+        url = reverse("api_vigia:detalle_corte", args=[self.generated.id])
+        etag = self._get(url)["ETag"]
+        Documento.objects.filter(corte=self.generated).update(clasificador1="NO EMBALAR")
+        self.generated.save(update_fields=["actualizado_en"])
+        response = self._get(url, HTTP_IF_NONE_MATCH=etag)
+        self.assertEqual(response.status_code, 200)
+        lineas = response.json()["data"]["documentos"][0]["lineas"]
+        self.assertEqual(lineas[0]["clasificador1"], "NO EMBALAR")

@@ -21,6 +21,7 @@ def _destinatarios(evento: str) -> list[str]:
         ]
         return correos
     except Exception:
+        logger.exception("No se pudieron leer los destinatarios de %s", evento)
         return []
 
 
@@ -61,7 +62,7 @@ def _enviar(destinatarios: list[str], asunto: str, cuerpo: str) -> bool:
                 valor_nuevo=str(e),
             )
         except Exception:
-            pass
+            logger.exception("Tampoco se pudo auditar la notificación fallida '%s'", asunto)
         return False
 
 

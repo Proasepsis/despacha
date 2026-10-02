@@ -50,6 +50,7 @@
         <div class="form-group">
             <label for="{{ form.numero_corte.id_for_label }}">Número de corte</label>
             {{ form.numero_corte }}
+            <p id="aviso-numero" class="msg msg-warning" style="display:none;margin-top:.4rem;font-size:12px;"></p>
         </div>
 
         <div class="form-group" style="display:flex;align-items:center;gap:.75rem;">
@@ -86,6 +87,7 @@
 }
 </style>
 
+{{ form.numero_por_ingesta|json_script:"numero-por-ingesta" }}
 <script>
 document.getElementById('upload-form').addEventListener('submit', function() {
     document.querySelector('#upload-form [type=submit]').disabled = true;
@@ -106,5 +108,36 @@ function toggleFormato() {
 }
 document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
 toggleFormato();
+
+// La extracción SIIGO sabe de qué corte es (corte_1 de las 11:00 = Corte 2, corte_2 de las 16:00 = Corte 1):
+// se preselecciona y, si el usuario lo cambia, se avisa sin bloquear.
+var NUMERO_POR_INGESTA = JSON.parse(document.getElementById('numero-por-ingesta').textContent);
+var selIngesta = document.getElementById('{{ form.ingestion.id_for_label }}');
+var selNumero = document.getElementById('{{ form.numero_corte.id_for_label }}');
+var HORA_CORRIDA = {2: '11:00', 1: '16:00'};
+
+function numeroEsperado() {
+    if (document.getElementById('{{ form.formato_origen.id_for_label }}').value !== 'API_SIIGO') return null;
+    return NUMERO_POR_INGESTA[selIngesta.value] || null;
+}
+function revisarNumero() {
+    var esperado = numeroEsperado();
+    var aviso = document.getElementById('aviso-numero');
+    if (esperado && String(esperado) !== selNumero.value) {
+        aviso.textContent = 'Esta extracción es del Corte ' + esperado + ' (corrida de las ' + HORA_CORRIDA[esperado] +
+            '). Vas a crearla como Corte ' + selNumero.value + '.';
+        aviso.style.display = '';
+    } else {
+        aviso.style.display = 'none';
+    }
+}
+selIngesta.addEventListener('change', function() {
+    var esperado = numeroEsperado();
+    if (esperado) selNumero.value = String(esperado);
+    revisarNumero();
+});
+selNumero.addEventListener('change', revisarNumero);
+document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', revisarNumero);
+revisarNumero();
 </script>
 {% endblock %}

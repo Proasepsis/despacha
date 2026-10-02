@@ -158,7 +158,7 @@ def detalle_corte(request, corte_id):
     latest_version = corte.versiones.order_by("-numero").first()
     entity_hash = latest_version.archivo_hash if latest_version else corte.hash_sha256
     etag = _construir_etag(
-        entity_hash,
+        f"{entity_hash}|{corte.actualizado_en.isoformat()}",
         page_size=document_params["page_size"],
         documento_cursor=document_params["cursor"],
     )

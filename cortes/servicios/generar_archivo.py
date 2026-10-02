@@ -19,6 +19,9 @@ COLUMNAS = [
 ]
 
 
+CARACTERES_INVALIDOS_HOJA = "[]:\\/?*"
+
+
 def cargar_parametros_salida() -> dict[str, str]:
     return {
         p.clave: p.valor
@@ -96,7 +99,13 @@ def generar_xls(corte: Corte) -> bytes:
             ciudades[nombre_ciudad].append((doc, linea))
 
     for nombre_ciudad, filas in ciudades.items():
-        ws = wb.add_sheet(nombre_ciudad[:31])
+        nombre_hoja = nombre_ciudad[:31]
+        if not nombre_hoja or set(nombre_hoja) & set(CARACTERES_INVALIDOS_HOJA):
+            raise ValueError(
+                f"La ciudad «{nombre_ciudad}» no sirve como nombre de hoja: revise Ciudad.nombre_archivo "
+                f"o el parámetro ciudad_default (no puede estar vacío ni tener {CARACTERES_INVALIDOS_HOJA})."
+            )
+        ws = wb.add_sheet(nombre_hoja)
 
         for col_idx, col_name in enumerate(COLUMNAS):
             ws.write(0, col_idx, col_name)

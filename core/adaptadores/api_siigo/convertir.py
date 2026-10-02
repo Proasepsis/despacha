@@ -12,8 +12,8 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from core.adaptadores.modelo_interno import DocumentoInterno, LineaInterna
-
-CODIGOS_PERMITIDOS = {"F": {1}, "H": {5}, "S": {1}, "T": {10, 25}}
+# Una sola fuente: el código 25 de traslados se agregó en un adaptador y casi no llega al otro
+from core.adaptadores.plantilla.adaptador import CODIGOS_PERMITIDOS
 
 BODEGA_VIGIA = 400
 UBICACION_VIGIA = 5

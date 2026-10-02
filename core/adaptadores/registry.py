@@ -1,3 +1,4 @@
+import logging
 from importlib import import_module
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def _descubrir():
                 try:
                     import_module(f"core.adaptadores.{child.name}")
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).exception("No se pudo cargar el adaptador %s", child.name)
 
 
 def registrar(clase: type[AdaptadorFormato]) -> type[AdaptadorFormato]:

@@ -118,15 +118,9 @@ En la lista haga clic sobre el corte que desea revisar. El estado debe ser **En 
 
 ![Clic en corte para revisar](./imagenes/op-abrir-corte.png)
 
-### Paso 2 — Tomar el bloqueo
+### Paso 2 — Ver quién más está en el corte
 
-Al abrir el corte, el sistema le asigna automáticamente un **bloqueo de edición** por 30 minutos. Esto evita que otro usuario edite al mismo tiempo.
-
-![Indicador de bloqueo propio](./imagenes/op-bloqueo-propio.png)
-
-> Si otro usuario ya tiene el bloqueo verá un aviso con su nombre. Solo puede ver el corte, no editarlo. Espere a que expire (máximo 30 min) o pida al administrador que lo libere.
-
-![Aviso bloqueo de otro usuario](./imagenes/op-bloqueo-otro.png)
+El corte no se bloquea: varias personas pueden tenerlo abierto. Cada cambio se guarda por separado, campo por campo; si dos personas cambian el mismo campo del mismo documento, queda el último. Si un cambio no se guarda, verá el aviso **"NO se guardó"**: recargue la página.
 
 > **Presencia:** en la parte superior puede ver qué otros usuarios están viendo el mismo corte en este momento.
 
@@ -251,9 +245,6 @@ El nombre del archivo tiene el formato: `MMM D corte N.xls`
 ---
 
 ## 9. Preguntas frecuentes
-
-**¿Por qué no puedo editar el corte si tengo rol almacenamiento?**
-Otro usuario tiene el bloqueo activo. Verá su nombre y el tiempo restante. Espere a que expire o pida al administrador que fuerce la liberación.
 
 **¿Por qué no aparece el botón "Generar"?**
 Verifique que el corte está en estado **En revisión** y que su usuario tiene rol `almacenamiento` o `admin`. Si hay líneas sin maestra el botón puede estar deshabilitado.

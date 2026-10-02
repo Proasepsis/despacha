@@ -86,8 +86,9 @@ compose=(
 
 healthy=false
 for _ in $(seq 1 30); do
-    status="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/" || true)"
-    if [[ "$status" == 200 || "$status" == 302 ]]; then
+    # /salud/ consulta la BD; "/" respondía 302 aunque la app no pudiera llegar a Postgres
+    status="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/salud/" || true)"
+    if [[ "$status" == 200 ]]; then
         healthy=true
         break
     fi

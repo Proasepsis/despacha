@@ -4,7 +4,7 @@ import logging
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import Http404, JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -27,12 +27,17 @@ from cortes.servicios.cargar import (
     ErrorSugerirAdicional,
 )
 from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta
-from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
 from cortes.servicios.generar import generar_y_entregar
 
 logger = logging.getLogger(__name__)
+
+# Valores que van a las columnas clasificador1/observaciones del XLS; el select del detalle usa los mismos
+OPCIONES_DOCUMENTO = {
+    "clasificador1": ["EMBALAR", "NO EMBALAR", "PREGUNTAR"],
+    "observaciones": ["PRIORIDAD", "NO PRIORIDAD"],
+}
 
 
 class EsFacturacionOAdminMixin(UserPassesTestMixin):
@@ -45,13 +50,6 @@ class EsAlmacenamientoOAdminMixin(UserPassesTestMixin):
 
     def test_func(self):
         return self.request.user.groups.filter(name__in=["almacenamiento", "admin"]).exists()
-
-
-class EsAdminMixin(UserPassesTestMixin):
-    raise_exception = True
-
-    def test_func(self):
-        return self.request.user.groups.filter(name="admin").exists()
 
 
 class ListaCortesView(LoginRequiredMixin, ListView):
@@ -275,8 +273,8 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
             "sin_maestro_count": sin_maestro_count,
             "es_editor": es_editor,
             "puede_eliminar": puede_eliminar,
-            "clasificador1_opciones": ["EMBALAR", "NO EMBALAR", "PREGUNTAR"],
-            "prioridad_opciones": ["PRIORIDAD", "NO PRIORIDAD"],
+            "clasificador1_opciones": OPCIONES_DOCUMENTO["clasificador1"],
+            "prioridad_opciones": OPCIONES_DOCUMENTO["observaciones"],
         })
         return ctx
 
@@ -305,9 +303,11 @@ class EditarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
             with transaction.atomic():
                 if tipo == "documento":
                     doc = get_object_or_404(Documento, pk=obj_id, corte=corte)
-                    valor_anterior = getattr(doc, campo)
                     if campo not in ("clasificador1", "observaciones", "subsanar_novedad", "factura_sufijo"):
                         return HttpResponseBadRequest(f"Campo no editable: {campo}")
+                    if campo in OPCIONES_DOCUMENTO and valor not in OPCIONES_DOCUMENTO[campo]:
+                        return HttpResponseBadRequest(f"Valor no permitido para {campo}: {valor}")
+                    valor_anterior = getattr(doc, campo)
                     if campo == "factura_sufijo" and not doc.subsanar_novedad:
                         return HttpResponseBadRequest("No se puede editar sufijo sin novedad activa")
                     if campo == "subsanar_novedad":
@@ -368,7 +368,10 @@ class EditarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):
 
                 corte.save(update_fields=["actualizado_en"])
 
+        except Http404:
+            raise
         except Exception:
+            logger.exception("Corte %s: error al guardar %s %s.%s", pk, tipo, obj_id, campo)
             return JsonResponse({"ok": False, "error": "Error al guardar"}, status=500)
 
         return JsonResponse({
@@ -468,13 +471,6 @@ class EliminarDocumentosView(LoginRequiredMixin, EsFacturacionOAdminMixin, View)
             corte.documentos.filter(pk__in=[d.pk for d in docs]).delete()
 
         return JsonResponse({"ok": True, "eliminados": [d.factura for d in docs]})
-
-
-class ForzarLiberacionView(LoginRequiredMixin, EsAdminMixin, View):
-    def post(self, request, pk):
-        corte = get_object_or_404(Corte, pk=pk)
-        liberar_bloqueo(corte, request.user, forzado_por_admin=True)
-        return JsonResponse({"ok": True})
 
 
 class GenerarCorteView(LoginRequiredMixin, EsAlmacenamientoOAdminMixin, View):

@@ -118,6 +118,8 @@ def _validate_payload(payload, idempotency_key):
     row_count = payload["row_count"]
     if not isinstance(rows, list) or not isinstance(row_count, int):
         raise ValueError("rows o row_count inválido")
+    if not all(isinstance(row, dict) for row in rows):
+        raise ValueError("cada fila de rows debe ser un objeto")
     if row_count != len(rows) or row_count < 0:
         raise ValueError("row_count no coincide con rows")
     canonical_rows = json.dumps(
