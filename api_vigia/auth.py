@@ -14,7 +14,9 @@ from .models import CredencialVigia
 logger = logging.getLogger(__name__)
 
 USAGE_REFRESH_INTERVAL = timedelta(seconds=30)
-PROXIES_CONFIABLES = {"127.0.0.1", "::1"}
+# nginx (X-Real-IP $remote_addr) -> 127.0.0.1:8000 -> docker-proxy: la app ve 127.0.0.1 o el gateway del bridge.
+# El puerto solo escucha en 127.0.0.1, así que nadie de afuera llega directo con estas IPs.
+PROXIES_CONFIABLES = [ipaddress.ip_network(red) for red in ("127.0.0.0/8", "::1/128", "172.16.0.0/12")]
 
 
 def autenticar_vigia(view):
@@ -71,9 +73,17 @@ def autenticar_vigia(view):
 def _source_ip(request):
     remote_address = request.META.get("REMOTE_ADDR")
     forwarded_ip = request.headers.get("X-Real-IP")
-    if remote_address in PROXIES_CONFIABLES and forwarded_ip:
+    if forwarded_ip and _ip_en(remote_address, PROXIES_CONFIABLES):
         return forwarded_ip
     return remote_address
+
+
+def _ip_en(ip, redes):
+    try:
+        direccion = ipaddress.ip_address(ip)
+    except (TypeError, ValueError):
+        return False
+    return any(direccion in red for red in redes)
 
 
 def _ip_allowed(source_ip, allowed_networks):
