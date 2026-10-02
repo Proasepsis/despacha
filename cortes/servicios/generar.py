@@ -17,7 +17,8 @@ def generar_y_entregar(
     usuario,
     motivo: str = "",
 ) -> dict:
-    corte.refresh_from_db()
+    # Bloquea la fila: dos "Generar" simultáneos calculaban la misma versión y chocaban en uq_corte_version
+    corte = Corte.objects.select_for_update().get(pk=corte.pk)
 
     if corte.documentos.filter(lineas__sin_maestro=True).exists():
         raise ValueError(
@@ -54,8 +55,10 @@ def generar_y_entregar(
             errores.append(f"{clave}: {resultado.error}")
 
     if errores:
-        corte.estado = "con_error"
-        corte.save(update_fields=["estado"])
+        # Una regeneración fallida no invalida la versión ya entregada (seguiría oculta en Vigia)
+        if corte.version_actual == 0:
+            corte.estado = "con_error"
+            corte.save(update_fields=["estado"])
         return {
             "success": False,
             "resultados": resultados,
