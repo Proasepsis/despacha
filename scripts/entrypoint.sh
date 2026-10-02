@@ -10,12 +10,15 @@ python manage.py collectstatic --noinput
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
     echo "==> Verificando superusuario..."
     python manage.py shell -c "
+import os
 from django.contrib.auth.models import User, Group
-if not User.objects.filter(username='${DJANGO_SUPERUSER_USERNAME}').exists():
+# Se leen del entorno: interpolarlos en el código rompía el arranque si la contraseña tenía comillas
+username = os.environ['DJANGO_SUPERUSER_USERNAME']
+if not User.objects.filter(username=username).exists():
     u = User.objects.create_superuser(
-        username='${DJANGO_SUPERUSER_USERNAME}',
-        email='${DJANGO_SUPERUSER_EMAIL:-admin@local}',
-        password='${DJANGO_SUPERUSER_PASSWORD}',
+        username=username,
+        email=os.environ.get('DJANGO_SUPERUSER_EMAIL') or 'admin@local',
+        password=os.environ['DJANGO_SUPERUSER_PASSWORD'],
     )
     grupo_admin, _ = Group.objects.get_or_create(name='admin')
     u.groups.add(grupo_admin)
