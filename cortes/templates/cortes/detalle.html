@@ -221,13 +221,26 @@ function autosave(tipo, id, campo, valor) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
         body: JSON.stringify({tipo: tipo, id: id, campo: campo, valor: valor})
-    }).then(function(r) { return r.json(); }).then(function(data) {
+    }).then(function(r) {
+        // Los 400 llegan como texto y una sesión vencida como HTML: antes fallaban en silencio
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') !== -1) return r.json();
+        return r.text().then(function(t) {
+            return {ok: false, error: r.redirected ? 'La sesión expiró, recarga la página' : (t || 'Error ' + r.status)};
+        });
+    }).then(function(data) {
+        var el = document.getElementById('ultima-edicion');
         if (data.ok) {
-            var el = document.getElementById('ultima-edicion');
             el.textContent = 'Guardado ' + data.ultima_edicion;
             el.style.color = 'var(--success)';
             setTimeout(function() { el.style.color = 'var(--text-muted)'; }, 2500);
+        } else {
+            el.textContent = 'NO se guardó: ' + (data.error || 'error');
+            el.style.color = 'var(--danger)';
+            alert('No se guardó el cambio: ' + (data.error || 'error') + '\nRecarga la página para ver el valor real.');
         }
+    }).catch(function() {
+        alert('No se guardó el cambio: error de conexión. Recarga la página.');
     });
 }
 
