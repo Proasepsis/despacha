@@ -143,3 +143,12 @@ class IngestionTests(TestCase):
                 self._schema_1_1(**cut)
                 self.assertEqual(self._post().status_code, 400)
         self.assertEqual(IngestionSiigo.objects.count(), 0)
+
+    def test_rejects_rows_that_are_not_objects(self):
+        # Una fila que no es objeto tumbaba después el formulario de carga (fila.get)
+        self.payload["rows"] = ["texto", 5]
+        self.payload["row_count"] = 2
+        rows_body = json.dumps(self.payload["rows"], ensure_ascii=False, separators=(",", ":")).encode()
+        self.payload["rows_sha256"] = hashlib.sha256(rows_body).hexdigest()
+        self.assertEqual(self._post().status_code, 400)
+        self.assertEqual(IngestionSiigo.objects.count(), 0)
