@@ -417,6 +417,24 @@ class GenerarRegeneracionTest(TestCase):
         self.assertEqual(self.corte.estado, "con_error")
         self.assertEqual(self.corte.version_actual, 0)
 
+    @patch.dict("os.environ", {"SOAP_URL": "http://ws.test/svc", "SOAP_NAMESPACE": "urn:t"})
+    @patch("core.adaptadores.destinos.soap.requests.post")
+    def test_generar_soap(self, mock_post):
+        mock_post.return_value = MagicMock(text="<ok/>", status_code=200)
+
+        resultado = generar_y_entregar(self.corte, destinos=["soap"], usuario=self.usuario)
+
+        self.assertTrue(resultado["success"])
+        sobre = mock_post.call_args.kwargs["data"].decode("utf-8")
+        self.assertIn('<RecibirCorte xmlns="urn:t">', sobre)
+        self.assertIn("<documento_referencia>FC001</documento_referencia>", sobre)
+        self.assertIn("<cantidad>4</cantidad>", sobre)
+
+        mock_post.return_value = MagicMock(text="<soap:Fault>rechazado</soap:Fault>", status_code=500)
+        resultado = generar_y_entregar(self.corte, destinos=["soap"], usuario=self.usuario)
+        self.assertFalse(resultado["success"])
+        self.assertIn("SOAP Fault", resultado["errores"][0])
+
 
 @override_settings(MEDIA_ROOT="/tmp/test_media_gen3")
 class VistaGenerarTest(TestCase):
