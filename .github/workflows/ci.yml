@@ -74,8 +74,10 @@ jobs:
           context: .
           push: ${{ github.event_name == 'push' }}
           tags: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # EMERGENCIA: el servicio de caché de GitHub Actions está caído (devuelve HTML de error y
+          # tumba el build). En push a main se construye sin caché; en PR sigue la caché gha.
+          cache-from: ${{ github.event_name != 'push' && 'type=gha' || '' }}
+          cache-to: ${{ github.event_name != 'push' && 'type=gha,mode=max' || '' }}
 
   deploy-staging:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
