@@ -58,6 +58,33 @@ def _a_int_o_str(valor) -> str:
     return str(valor).strip()
 
 
+def _es_anio(valor) -> bool:
+    try:
+        return 2000 <= int(float(valor)) <= 2100
+    except (TypeError, ValueError):
+        return False
+
+
+def _filas_traen_cucon(encabezados: list[str], filas: list[tuple]) -> bool:
+    """¿Las filas de datos incluyen la celda de CUCON?
+
+    Ancla: "AÑO DEL VENCIMIENTO DEL LOTE" siempre es un año (20xx). Se prueba en qué
+    alineación (con o sin la celda CUCON) cae un año en esa columna.
+    ponytail: sin encabezado CUCON o sin la columna ancla se asume "no la trae".
+    """
+    cucon = next(
+        (i for i, e in enumerate(encabezados) if _normalizar(e).startswith("CUCON")), None
+    )
+    anio = _buscar_columna(encabezados, "AÑO DEL VENCIMIENTO DEL LOTE") - 1
+    if cucon is None or anio <= cucon:
+        return False
+    muestra = filas[:200]
+    # sin celda CUCON la columna del año está una posición antes que en el encabezado
+    sin_celda = sum(1 for f in muestra if anio - 1 < len(f) and _es_anio(f[anio - 1]))
+    con_celda = sum(1 for f in muestra if anio < len(f) and _es_anio(f[anio]))
+    return con_celda > sin_celda
+
+
 def _armar_codigo_producto(linea_raw, grupo_raw, codigo_raw) -> str:
     """
     Concatena LÍNEA(3) + GRUPO(4) + CÓDIGO(6) → string de 13 caracteres.
@@ -143,12 +170,14 @@ class AdaptadorPlantilla(AdaptadorFormato):
             wb.close()
             return []
 
-        # ponytail: SIIGO trae el encabezado CUCON pero las filas no traen esa celda,
-        # así que se descarta para que los datos queden alineados. Si SIIGO empieza
-        # a llenar la columna, quitar este filtro.
-        encabezados_leidos = [
-            e for e in encabezados_leidos if not _normalizar(e).startswith("CUCON")
-        ]
+        filas = list(ws.iter_rows(min_row=header_row + 1, values_only=True))
+
+        # SIIGO trae siempre el encabezado CUCON, pero según la versión las filas
+        # traen la celda o no: se descarta el encabezado solo si la fila no la trae.
+        if not _filas_traen_cucon(encabezados_leidos, filas):
+            encabezados_leidos = [
+                e for e in encabezados_leidos if not _normalizar(e).startswith("CUCON")
+            ]
 
         col_idx: dict[str, int] = {}
         for esperada in COLUMNAS_ESPERADAS:
@@ -165,7 +194,10 @@ class AdaptadorPlantilla(AdaptadorFormato):
                 return None
             return fila[idx - 1]
 
-        for fila in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        anio_idx = _buscar_columna(encabezados_leidos, "AÑO DEL VENCIMIENTO DEL LOTE")
+        aceptadas = con_anio = 0
+
+        for fila in filas:
             num_doc = _a_str(_celda(fila, "NÚMERO DE DOCUMENTO"))
             if not num_doc or not num_doc.strip():
                 continue
@@ -207,6 +239,10 @@ class AdaptadorPlantilla(AdaptadorFormato):
             if not es_traslado and debito_credito != "C":
                 continue
 
+            aceptadas += 1
+            if anio_idx and anio_idx <= len(fila) and _es_anio(fila[anio_idx - 1]):
+                con_anio += 1
+
             cantidad_dec = Decimal("0")
             if cantidad is not None:
                 try:
@@ -241,4 +277,13 @@ class AdaptadorPlantilla(AdaptadorFormato):
             documentos[clave].lineas.append(linea)
 
         wb.close()
+
+        # Si las columnas están corridas, el año de vencimiento nunca cae donde toca.
+        # ponytail: umbral de 5 filas para no bloquear cortes diminutos sin lote.
+        if anio_idx and aceptadas >= 5 and con_anio == 0:
+            raise ValueError(
+                "El formato del archivo parece haber cambiado: la columna "
+                "'AÑO DEL VENCIMIENTO DEL LOTE' no contiene años en ninguna fila, "
+                "así que las columnas están desalineadas. Avise a soporte."
+            )
         return list(documentos.values())

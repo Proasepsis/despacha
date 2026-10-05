@@ -117,7 +117,10 @@ def cargar_archivo(
             corte.delete()
             raise ErrorValidacionAdaptador(str(e)) from e
 
-        documentos = adaptador.parse(tmp_path)
+        try:
+            documentos = adaptador.parse(tmp_path)
+        except ValueError as e:
+            raise ErrorValidacionAdaptador(str(e)) from e
     finally:
         tmp_path.unlink(missing_ok=True)
 
@@ -138,6 +141,15 @@ def cargar_archivo(
         corte.estado = "con_error"
         corte.save(update_fields=["estado"])
         raise
+
+    # Un corte real casi nunca tiene todas las líneas fuera del catálogo; eso indica
+    # que el formato del archivo cambió. Se aborta (la transacción deshace el corte).
+    # ponytail: umbral de 10 líneas para no bloquear cortes chicos de productos nuevos.
+    if resultado.lineas_creadas >= 10 and resultado.lineas_sin_maestro == resultado.lineas_creadas:
+        raise ErrorValidacionAdaptador(
+            f"Las {resultado.lineas_creadas} líneas del archivo quedaron sin producto en el "
+            "maestro. Es probable que el formato del archivo haya cambiado; no se creó el corte."
+        )
 
     corte.estado = "en_revision"
     corte.save(update_fields=["estado", "fecha"])
