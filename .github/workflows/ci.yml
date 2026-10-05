@@ -20,9 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
+        if: github.event_name != 'push'
         with:
           python-version: "3.13"
           cache: pip
+      # EMERGENCIA: el runner propio es Debian 13 y setup-python no publica Python para esa
+      # distro; se usa el Python 3.13 del sistema en un venv. Revertir junto con runs-on.
+      - name: Python del sistema (runner propio)
+        if: github.event_name == 'push'
+        run: |
+          python3.13 -m venv "$RUNNER_TEMP/venv"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
       - run: pip install -r requirements.txt
       - name: Validate dependencies
         run: pip check
