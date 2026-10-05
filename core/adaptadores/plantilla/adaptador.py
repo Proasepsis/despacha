@@ -194,6 +194,9 @@ class AdaptadorPlantilla(AdaptadorFormato):
                 return None
             return fila[idx - 1]
 
+        anio_idx = _buscar_columna(encabezados_leidos, "AÑO DEL VENCIMIENTO DEL LOTE")
+        aceptadas = con_anio = 0
+
         for fila in filas:
             num_doc = _a_str(_celda(fila, "NÚMERO DE DOCUMENTO"))
             if not num_doc or not num_doc.strip():
@@ -236,6 +239,10 @@ class AdaptadorPlantilla(AdaptadorFormato):
             if not es_traslado and debito_credito != "C":
                 continue
 
+            aceptadas += 1
+            if anio_idx and anio_idx <= len(fila) and _es_anio(fila[anio_idx - 1]):
+                con_anio += 1
+
             cantidad_dec = Decimal("0")
             if cantidad is not None:
                 try:
@@ -270,4 +277,13 @@ class AdaptadorPlantilla(AdaptadorFormato):
             documentos[clave].lineas.append(linea)
 
         wb.close()
+
+        # Si las columnas están corridas, el año de vencimiento nunca cae donde toca.
+        # ponytail: umbral de 5 filas para no bloquear cortes diminutos sin lote.
+        if anio_idx and aceptadas >= 5 and con_anio == 0:
+            raise ValueError(
+                "El formato del archivo parece haber cambiado: la columna "
+                "'AÑO DEL VENCIMIENTO DEL LOTE' no contiene años en ninguna fila, "
+                "así que las columnas están desalineadas. Avise a soporte."
+            )
         return list(documentos.values())
