@@ -14,7 +14,9 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # EMERGENCIA (incidente de runners hospedados de GitHub, 2026-10-05): en push a main
+    # corre en el runner propio; los PR siguen en GitHub. Revertir cuando se normalice.
+    runs-on: ${{ github.event_name == 'push' && fromJSON('["self-hosted","linux","x64","despacha-deploy"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -35,7 +37,9 @@ jobs:
 
   image:
     needs: test
-    runs-on: ubuntu-latest
+    # EMERGENCIA (incidente de runners hospedados de GitHub, 2026-10-05): en push a main
+    # corre en el runner propio; los PR siguen en GitHub. Revertir cuando se normalice.
+    runs-on: ${{ github.event_name == 'push' && fromJSON('["self-hosted","linux","x64","despacha-deploy"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
       packages: write
