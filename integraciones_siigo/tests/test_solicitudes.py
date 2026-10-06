@@ -330,6 +330,9 @@ class PantallaTests(TestCase):
         self.client.force_login(alm)
         self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 403)
 
+    def test_anonimo_va_al_login(self):
+        self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 302)
+
     def test_sin_grupo_403(self):
         otro = User.objects.create_user("otro", password="x")
         self.client.force_login(otro)

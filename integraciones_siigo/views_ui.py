@@ -1,5 +1,7 @@
 from django import forms
+from django.contrib.auth.views import redirect_to_login
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
 from django.views import View
 
@@ -26,7 +28,10 @@ class SolicitudForm(forms.Form):
 class SolicitudesView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
     """Historial de solicitudes de extracción SIIGO y formulario para crear una."""
 
-    raise_exception = True
+    def handle_no_permission(self):
+        if not self.request.user.is_authenticated:
+            return redirect_to_login(self.request.get_full_path())
+        raise PermissionDenied
 
     def _render(self, request, form):
         solicitudes.vencer_tomadas()
