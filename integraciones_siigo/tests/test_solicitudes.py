@@ -316,7 +316,21 @@ class PantallaTests(TestCase):
         self.admin = User.objects.create_user("adm", password="x")
         self.admin.groups.add(Group.objects.get_or_create(name="admin")[0])
 
-    def test_solo_admin(self):
+    def test_facturacion_puede_pedir(self):
+        fac = User.objects.create_user("fac", password="x")
+        fac.groups.add(Group.objects.get_or_create(name="facturacion")[0])
+        self.client.force_login(fac)
+        r = self.client.post(reverse("siigo-solicitudes"), {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-30"})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(SolicitudExtraccion.objects.get().creada_por, fac)
+
+    def test_almacenamiento_no(self):
+        alm = User.objects.create_user("alm", password="x")
+        alm.groups.add(Group.objects.get_or_create(name="almacenamiento")[0])
+        self.client.force_login(alm)
+        self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 403)
+
+    def test_sin_grupo_403(self):
         otro = User.objects.create_user("otro", password="x")
         self.client.force_login(otro)
         self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 403)

@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, render
 from django.views import View
 
-from cortes.views import EsAdminMixin
+from cortes.views import EsFacturacionOAdminMixin
 
 from . import solicitudes
 from .models import SolicitudExtraccion
@@ -23,8 +23,10 @@ class SolicitudForm(forms.Form):
         return data
 
 
-class SolicitudesView(LoginRequiredMixin, EsAdminMixin, View):
+class SolicitudesView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
     """Historial de solicitudes de extracción SIIGO y formulario para crear una."""
+
+    raise_exception = True
 
     def _render(self, request, form):
         solicitudes.vencer_tomadas()
