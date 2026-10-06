@@ -3,20 +3,25 @@ import hmac
 import json
 import re
 import uuid
+from datetime import date
 
 from django.conf import settings
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .models import IngestionSiigo
+from . import solicitudes
+from .models import IngestionSiigo, SolicitudExtraccion
 
 
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-SCHEMAS_SOPORTADOS = {"1.0", "1.1"}
+SCHEMAS_SOPORTADOS = {"1.0", "1.1", "1.2"}
+CAMPOS_1_2 = ("anio_documento", "mes_documento", "dia_documento", "secuencia")
 NOMBRES_CUT = {"corte_1", "corte_2", "extra", "recuperacion"}
+NOMBRE_SOLICITUD = "solicitud"
 
 
 @csrf_exempt
@@ -38,35 +43,112 @@ def ingest_siigo(request):
         return _error("invalid_payload", 400, str(error))
 
     with transaction.atomic():
-        ingestion, created = IngestionSiigo.objects.get_or_create(
-            extraction_id=validated.pop("extraction_id"),
-            defaults={
-                **validated,
-                "content_sha256": body_hash,
-                "payload": payload,
-                "source_ip": _source_ip(request),
-            },
-        )
-        if not created:
+        extraction_id = validated.pop("extraction_id")
+        solicitud_id = validated.pop("solicitud_id")
+        ingestion = IngestionSiigo.objects.filter(extraction_id=extraction_id).first()
+        if ingestion is not None:
             if not hmac.compare_digest(ingestion.content_sha256, body_hash):
                 return _error("idempotency_conflict", 409)
-            return JsonResponse(
-                {
-                    "extraction_id": str(ingestion.extraction_id),
-                    "raw_sha256": ingestion.raw_sha256,
-                    "status": "duplicate",
-                },
-                status=200,
-            )
+            return _acuse(ingestion, "duplicate", 200)
 
+        solicitud = None
+        if solicitud_id:
+            solicitud = SolicitudExtraccion.objects.select_for_update().filter(solicitud_id=solicitud_id).first()
+            if solicitud is None:
+                return _error("solicitud_no_existe", 404)
+            if solicitud.estado != SolicitudExtraccion.TOMADA:
+                return _error("solicitud_no_tomada", 409)
+            cut = payload["cut"]
+            if (cut["desde"], cut["hasta"]) != (str(solicitud.fecha_inicio), str(solicitud.fecha_fin)):
+                return _error("invalid_payload", 400, "cut no coincide con la solicitud")
+        ingestion = IngestionSiigo.objects.create(
+            extraction_id=extraction_id,
+            solicitud=solicitud,
+            content_sha256=body_hash,
+            payload=payload,
+            source_ip=_source_ip(request),
+            **validated,
+        )
+        if solicitud is not None:
+            solicitudes.reemplazar_filas(ingestion, solicitud.fecha_inicio, solicitud.fecha_fin)
+    return _acuse(ingestion, "accepted", 202)
+
+
+def _acuse(ingestion, status_text, status):
     return JsonResponse(
         {
             "extraction_id": str(ingestion.extraction_id),
             "raw_sha256": ingestion.raw_sha256,
-            "status": "accepted",
+            "status": status_text,
         },
-        status=202,
+        status=status,
     )
+
+
+@csrf_exempt
+@require_POST
+def tomar_solicitud(request):
+    auth_error = _authenticate(request)
+    if auth_error is not None:
+        return auth_error
+    solicitud = solicitudes.tomar_siguiente()
+    if solicitud is None:
+        return HttpResponse(status=204)
+    return JsonResponse(
+        {
+            "solicitud_id": str(solicitud.solicitud_id),
+            "fecha_inicio": str(solicitud.fecha_inicio),
+            "fecha_fin": str(solicitud.fecha_fin),
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def estado_solicitud(request, solicitud_id):
+    auth_error = _authenticate(request)
+    if auth_error is not None:
+        return auth_error
+    try:
+        body = json.loads(request.body)
+        estado = body["estado"]
+        extraction_id = body.get("extraction_id")
+        row_count = body.get("row_count")
+        error = body.get("error") or ""
+        if estado not in (SolicitudExtraccion.COMPLETADA, SolicitudExtraccion.FALLIDA):
+            raise ValueError("estado inválido")
+        if extraction_id is not None:
+            extraction_id = uuid.UUID(str(extraction_id))
+        if row_count is not None and (not isinstance(row_count, int) or isinstance(row_count, bool) or row_count < 0):
+            raise ValueError("row_count inválido")
+        if not isinstance(error, str):
+            raise ValueError("error inválido")
+    except (json.JSONDecodeError, TypeError, ValueError, KeyError, AttributeError) as e:
+        return _error("invalid_payload", 400, str(e))
+
+    with transaction.atomic():
+        solicitud = SolicitudExtraccion.objects.select_for_update().filter(solicitud_id=solicitud_id).first()
+        if solicitud is None:
+            return _error("solicitud_no_existe", 404)
+        if solicitud.estado != SolicitudExtraccion.TOMADA:
+            return _error("solicitud_no_tomada", 409)
+        if estado == SolicitudExtraccion.COMPLETADA:
+            ingestiones = solicitud.ingestiones.all()
+            if extraction_id is not None:
+                ingestiones = ingestiones.filter(extraction_id=extraction_id)
+            ingestion = ingestiones.first()
+            if ingestion is None:
+                return _error("sin_ingesta", 409)
+            extraction_id = ingestion.extraction_id
+            if row_count is None:
+                row_count = ingestion.row_count
+        solicitud.estado = estado
+        solicitud.extraction_id = extraction_id
+        solicitud.row_count = row_count
+        solicitud.error = error[:1000]
+        solicitud.completada_en = timezone.now()
+        solicitud.save()
+    return JsonResponse({"solicitud_id": str(solicitud.solicitud_id), "estado": estado})
 
 
 def _authenticate(request):
@@ -97,6 +179,14 @@ def _validate_payload(payload, idempotency_key):
         raise ValueError("schema_version no soportada")
     if "cut" in payload:
         _validate_cut(payload["cut"])
+    es_solicitud = payload.get("cut", {}).get("nombre") == NOMBRE_SOLICITUD
+    solicitud_id = None
+    if es_solicitud:
+        if payload["schema_version"] != "1.2":
+            raise ValueError("Una solicitud requiere schema_version 1.2")
+        solicitud_id = uuid.UUID(str(payload["solicitud_id"]))
+    elif "solicitud_id" in payload:
+        raise ValueError("solicitud_id solo aplica con cut.nombre=solicitud")
     if payload["source"] != "siigo":
         raise ValueError("source no soportado")
 
@@ -120,6 +210,13 @@ def _validate_payload(payload, idempotency_key):
         raise ValueError("rows o row_count inválido")
     if row_count != len(rows) or row_count < 0:
         raise ValueError("row_count no coincide con rows")
+    if payload["schema_version"] == "1.2":
+        for fila in rows:
+            if not isinstance(fila, dict) or any(fila.get(c) in (None, "") for c in CAMPOS_1_2):
+                raise ValueError("Schema 1.2: cada fila requiere " + ", ".join(CAMPOS_1_2))
+        if es_solicitud:
+            for fila in rows:
+                date(int(fila["anio_documento"]), int(fila["mes_documento"]), int(fila["dia_documento"]))
     canonical_rows = json.dumps(
         rows,
         ensure_ascii=False,
@@ -135,6 +232,7 @@ def _validate_payload(payload, idempotency_key):
         raise ValueError("size_bytes inválido")
     return {
         "extraction_id": extraction_id,
+        "solicitud_id": solicitud_id,
         "schema_version": payload["schema_version"],
         "source": payload["source"],
         "window_start": window_start,
@@ -149,6 +247,11 @@ def _validate_payload(payload, idempotency_key):
 
 def _validate_cut(cut):
     """Corte que ya aplicó el extractor (schema 1.1): nombre y ventana (desde, hasta]."""
+    if isinstance(cut, dict) and cut.get("nombre") == NOMBRE_SOLICITUD:
+        desde, hasta = parse_date(str(cut.get("desde", ""))), parse_date(str(cut.get("hasta", "")))
+        if desde is None or hasta is None or hasta < desde:
+            raise ValueError("cut.desde/cut.hasta deben ser fechas AAAA-MM-DD válidas")
+        return
     if not isinstance(cut, dict) or cut.get("nombre") not in NOMBRES_CUT:
         raise ValueError("cut.nombre inválido")
     desde = parse_datetime(str(cut.get("desde", "")))

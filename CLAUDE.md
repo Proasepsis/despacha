@@ -134,6 +134,16 @@ An alternate entry point to the corte lifecycle: `POST /api/v1/siigo/ingestions`
 - Documents are grouped by `(tipo_comprobante, codigo_comprobante, numero_documento)` in both adapters: the same number can exist as `F` and `T`.
 - An ingestion with no applicable documents (e.g. `rows: []`, a cut with no movement) is stored but creates no corte: `cargar_ingesta` raises `ErrorCarga`. A document re-sent in a later cut is not merged; it is created again and the detail view marks it "ya en Corte X".
 
+#### Solicitudes de extracción (schema 1.2)
+
+Despacha pide al agente SIIGO la foto de un día o rango; el agente consulta (no acepta conexiones entrantes) con el mismo Bearer.
+
+- `SolicitudExtraccion` (`pendiente → tomada → completada|fallida`) se crea en `/siigo/solicitudes/` (grupo `admin`, también historial). Validación en `integraciones_siigo/solicitudes.py::validar_rango` (inicio ≤ fin, mismo año, ≤ 31 días, nada futuro).
+- `POST /api/v1/siigo/solicitudes/tomar`: toma la más antigua con un `UPDATE` condicional (atómico, 200/204). Una `tomada` > 20 min vuelve a `pendiente`; al 3er intento queda `fallida` ("sin respuesta del agente").
+- `POST /api/v1/siigo/solicitudes/<uuid>/estado`: `completada`/`fallida`; 404 si no existe, 409 si no está `tomada` o si `completada` no tiene ingesta con ese `solicitud_id`.
+- Ingesta schema `1.0`/`1.1`/`1.2`. En 1.2 toda fila trae `anio/mes/dia_documento` y `secuencia`. Con `cut.nombre="solicitud"` (+ `solicitud_id`, `cut.desde/hasta` AAAA-MM-DD iguales a la solicitud) las filas **reemplazan** las de esos documentos en `FilaSiigo` (clave documento+`secuencia`); los documentos del rango que no vienen se marcan `no_presente_en_siigo`, sin borrarse. Las solicitudes **no crean cortes**.
+- Pendiente (otro PR): un documento partido entre dos cortes (p.ej. F-001-56651) hoy se duplica en ambos cortes; `FilaSiigo`/`secuencia` es la base para unificarlo.
+
 ### Vigia read-only API (`api_vigia`)
 
 Read-only JSON API under `/api/v1/vigia/` for external systems to pull *already-generated* cortes (`estado="generado"` only — nothing in `cargado`/`en_revision` is ever exposed).
