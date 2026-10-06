@@ -1,0 +1,39 @@
+{% extends "cortes/base.html" %}
+
+{% block title %}Solicitudes SIIGO — Despacha{% endblock %}
+
+{% block content %}
+<div class="toolbar"><h2 style="flex:1;">Solicitudes de extracción SIIGO</h2></div>
+
+<form method="post" style="display:flex;gap:.75rem;align-items:flex-end;margin-bottom:1rem;">
+  {% csrf_token %}
+  <label>Desde {{ form.fecha_inicio }}</label>
+  <label>Hasta {{ form.fecha_fin }}</label>
+  <button type="submit" class="btn btn-primary" onclick="setTimeout(()=>this.disabled=true)">Solicitar</button>
+</form>
+{{ form.non_field_errors }}{{ form.fecha_inicio.errors }}{{ form.fecha_fin.errors }}
+
+<table>
+  <thead><tr>
+    <th>Rango</th><th>Estado</th><th>Creada por</th><th>Creada</th><th>Tomada</th>
+    <th>Completada</th><th>Intentos</th><th>Filas</th><th>Error</th>
+  </tr></thead>
+  <tbody>
+  {% for s in solicitudes %}
+    <tr>
+      <td>{{ s.fecha_inicio|date:"d/m/Y" }}{% if s.fecha_fin != s.fecha_inicio %} – {{ s.fecha_fin|date:"d/m/Y" }}{% endif %}</td>
+      <td>{{ s.get_estado_display }}</td>
+      <td>{{ s.creada_por.username|default:"—" }}</td>
+      <td>{{ s.creada_en|date:"d/m H:i" }}</td>
+      <td>{{ s.tomada_en|date:"d/m H:i"|default:"—" }}</td>
+      <td>{{ s.completada_en|date:"d/m H:i"|default:"—" }}</td>
+      <td>{{ s.intentos }}</td>
+      <td>{{ s.row_count|default_if_none:"—" }}</td>
+      <td>{{ s.error }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="9">Sin solicitudes.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
