@@ -91,7 +91,11 @@ def tomar_solicitud(request):
     auth_error = _authenticate(request)
     if auth_error is not None:
         return auth_error
-    solicitud = solicitudes.tomar_siguiente()
+    try:
+        espera = float(request.GET.get("espera", 0))
+    except ValueError:
+        return _error("invalid_espera", 400)
+    solicitud = solicitudes.tomar_esperando(espera)
     if solicitud is None:
         return HttpResponse(status=204)
     return JsonResponse(

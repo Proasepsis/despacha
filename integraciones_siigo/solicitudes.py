@@ -1,6 +1,7 @@
+import time
 from datetime import date, timedelta
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -9,6 +10,7 @@ from .models import FilaSiigo, SolicitudExtraccion
 TIMEOUT_TOMADA = timedelta(minutes=20)
 MAX_INTENTOS = 3
 MAX_DIAS = 31
+MAX_ESPERA = 30
 
 
 def validar_rango(inicio: date, fin: date):
@@ -22,9 +24,25 @@ def validar_rango(inicio: date, fin: date):
         raise ValueError("El rango no puede incluir fechas futuras")
 
 
+class SolicitudEnCurso(Exception):
+    def __init__(self, solicitud):
+        super().__init__(f"Ya hay una solicitud {solicitud.estado} para ese rango")
+        self.solicitud = solicitud
+
+
 def crear_solicitud(inicio: date, fin: date, usuario) -> SolicitudExtraccion:
+    """Idempotente por rango: si ya hay una pendiente/tomada igual, no crea otra (SolicitudEnCurso)."""
     validar_rango(inicio, fin)
-    return SolicitudExtraccion.objects.create(fecha_inicio=inicio, fecha_fin=fin, creada_por=usuario)
+    activas = SolicitudExtraccion.objects.filter(
+        fecha_inicio=inicio, fecha_fin=fin, estado__in=[SolicitudExtraccion.PENDIENTE, SolicitudExtraccion.TOMADA]
+    )
+    if (existente := activas.first()) is not None:
+        raise SolicitudEnCurso(existente)
+    try:
+        with transaction.atomic():
+            return SolicitudExtraccion.objects.create(fecha_inicio=inicio, fecha_fin=fin, creada_por=usuario)
+    except IntegrityError:  # doble clic simultáneo: la restricción de la base de datos gana
+        raise SolicitudEnCurso(activas.get())
 
 
 def vencer_tomadas():
@@ -58,6 +76,16 @@ def tomar_siguiente() -> SolicitudExtraccion | None:
         )
         if tomadas:
             return SolicitudExtraccion.objects.get(pk=pk)
+
+
+def tomar_esperando(espera: float) -> SolicitudExtraccion | None:
+    """Long-poll: como tomar_siguiente, pero reintenta cada segundo hasta `espera` s (máx. MAX_ESPERA)."""
+    limite = time.monotonic() + min(max(espera, 0), MAX_ESPERA)
+    while True:
+        solicitud = tomar_siguiente()
+        if solicitud is not None or time.monotonic() >= limite:
+            return solicitud
+        time.sleep(1)
 
 
 def _txt(valor) -> str:

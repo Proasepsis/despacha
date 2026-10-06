@@ -9,7 +9,7 @@
   {% csrf_token %}
   <label>Desde {{ form.fecha_inicio }}</label>
   <label>Hasta {{ form.fecha_fin }}</label>
-  <button type="submit" class="btn btn-primary">Solicitar</button>
+  <button type="submit" class="btn btn-primary" onclick="setTimeout(()=>this.disabled=true)">Solicitar</button>
 </form>
 {{ form.non_field_errors }}{{ form.fecha_inicio.errors }}{{ form.fecha_fin.errors }}
 

@@ -45,5 +45,9 @@ class SolicitudesView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
         form = SolicitudForm(request.POST)
         if not form.is_valid():
             return self._render(request, form)
-        solicitudes.crear_solicitud(form.cleaned_data["fecha_inicio"], form.cleaned_data["fecha_fin"], request.user)
+        try:
+            solicitudes.crear_solicitud(form.cleaned_data["fecha_inicio"], form.cleaned_data["fecha_fin"], request.user)
+        except solicitudes.SolicitudEnCurso as e:
+            form.add_error(None, f"{e}. Espera a que termine antes de pedirla de nuevo.")
+            return self._render(request, form)
         return redirect("siigo-solicitudes")

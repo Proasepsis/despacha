@@ -97,7 +97,7 @@ class TomarTests(Base, TestCase):
 
     def test_segunda_llamada_pierde_la_carrera(self):
         # El UPDATE condicional afecta 0 filas si otra llamada ya la tomó: se pasa a la siguiente
-        a, b = self.nueva(), self.nueva()
+        a, b = self.nueva(), self.nueva(date(2026, 9, 29), date(2026, 9, 29))
         real = SolicitudExtraccion.objects.filter
         llamado = []
 
@@ -137,13 +137,55 @@ class TomarTests(Base, TestCase):
 
 
 @con_token
+class LongPollTests(Base, TestCase):
+    def test_sin_espera_responde_al_instante(self):
+        from unittest import mock
+        with mock.patch("integraciones_siigo.solicitudes.time.sleep") as dormir:
+            self.assertEqual(self.tomar().status_code, 204)
+        dormir.assert_not_called()
+
+    def test_con_pendiente_no_espera(self):
+        from unittest import mock
+        self.nueva()
+        with mock.patch("integraciones_siigo.solicitudes.time.sleep") as dormir:
+            r = self.client.post(reverse("siigo-solicitud-tomar") + "?espera=25", **AUTH)
+        self.assertEqual(r.status_code, 200)
+        dormir.assert_not_called()
+
+    def test_espera_y_toma_la_que_llega_mientras_tanto(self):
+        from unittest import mock
+        creada = []
+
+        def llega_una(_):
+            creada.append(self.nueva())
+
+        with mock.patch("integraciones_siigo.solicitudes.time.sleep", side_effect=llega_una):
+            r = self.client.post(reverse("siigo-solicitud-tomar") + "?espera=25", **AUTH)
+        self.assertEqual(r.json()["solicitud_id"], str(creada[0].solicitud_id))
+
+    def test_espera_vence_con_204(self):
+        r = self.client.post(reverse("siigo-solicitud-tomar") + "?espera=1", **AUTH)
+        self.assertEqual(r.status_code, 204)
+
+    def test_espera_se_acota_a_30(self):
+        from unittest import mock
+        reloj = iter([0, 0, 31])
+        with mock.patch("integraciones_siigo.solicitudes.time.monotonic", side_effect=lambda: next(reloj)), \
+             mock.patch("integraciones_siigo.solicitudes.time.sleep"):
+            self.assertIsNone(solicitudes.tomar_esperando(9999))
+
+    def test_espera_invalida_400(self):
+        r = self.client.post(reverse("siigo-solicitud-tomar") + "?espera=abc", **AUTH)
+        self.assertEqual(r.status_code, 400)
+
+
 class ConcurrenciaTests(Base, TransactionTestCase):
     def test_hilos_no_toman_la_misma(self):
         import threading
         if connection.vendor == "sqlite":
             self.skipTest("SQLite en memoria no soporta conexiones concurrentes; cubierto por test_segunda_llamada_pierde_la_carrera")
-        for _ in range(3):
-            self.nueva()
+        for i in range(3):
+            self.nueva(date(2026, 9, 1 + i), date(2026, 9, 1 + i))
         ids, lock = [], threading.Lock()
 
         def tomar():
@@ -311,6 +353,37 @@ class CrearSolicitudTests(TestCase):
         self.assertEqual(SolicitudExtraccion.objects.get().estado, "pendiente")
 
 
+class IdempotenciaTests(TestCase):
+    def test_mismo_rango_en_curso_no_se_duplica(self):
+        solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+        with self.assertRaises(solicitudes.SolicitudEnCurso):
+            solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+        self.assertEqual(SolicitudExtraccion.objects.count(), 1)
+
+    def test_tomada_tambien_bloquea(self):
+        s = solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+        solicitudes.tomar_siguiente()
+        with self.assertRaises(solicitudes.SolicitudEnCurso):
+            solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+
+    def test_terminada_permite_volver_a_pedir(self):
+        s = solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+        SolicitudExtraccion.objects.filter(pk=s.pk).update(estado="completada")
+        solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+        self.assertEqual(SolicitudExtraccion.objects.count(), 2)
+
+    def test_otro_rango_si_se_puede(self):
+        solicitudes.crear_solicitud(date(2026, 9, 30), date(2026, 9, 30), None)
+        solicitudes.crear_solicitud(date(2026, 9, 29), date(2026, 9, 29), None)
+        self.assertEqual(SolicitudExtraccion.objects.count(), 2)
+
+    def test_la_base_de_datos_tambien_lo_impide(self):
+        from django.db import IntegrityError, transaction
+        SolicitudExtraccion.objects.create(fecha_inicio=date(2026, 9, 30), fecha_fin=date(2026, 9, 30))
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            SolicitudExtraccion.objects.create(fecha_inicio=date(2026, 9, 30), fecha_fin=date(2026, 9, 30))
+
+
 class PantallaTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user("adm", password="x")
@@ -345,6 +418,14 @@ class PantallaTests(TestCase):
         s = SolicitudExtraccion.objects.get()
         self.assertEqual(s.creada_por, self.admin)
         self.assertContains(self.client.get(reverse("siigo-solicitudes")), "adm")
+
+    def test_doble_envio_no_duplica_y_avisa(self):
+        self.client.force_login(self.admin)
+        datos = {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-30"}
+        self.client.post(reverse("siigo-solicitudes"), datos)
+        r = self.client.post(reverse("siigo-solicitudes"), datos)
+        self.assertContains(r, "Ya hay una solicitud pendiente")
+        self.assertEqual(SolicitudExtraccion.objects.count(), 1)
 
     def test_rango_invalido_no_crea(self):
         self.client.force_login(self.admin)

@@ -66,6 +66,14 @@ class SolicitudExtraccion(models.Model):
 
     class Meta:
         ordering = ["-creada_en"]
+        constraints = [
+            # Idempotencia: mientras una solicitud siga en curso no se puede pedir el mismo rango otra vez
+            models.UniqueConstraint(
+                fields=["fecha_inicio", "fecha_fin"],
+                condition=models.Q(estado__in=["pendiente", "tomada"]),
+                name="solicitud_en_curso_unica",
+            )
+        ]
         verbose_name = "Solicitud de extracción"
         verbose_name_plural = "Solicitudes de extracción"
 
