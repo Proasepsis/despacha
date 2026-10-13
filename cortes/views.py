@@ -77,7 +77,7 @@ class ListaCortesView(LoginRequiredMixin, ListView):
 
         qs = super().get_queryset().annotate(
             documentos_count=Count("documentos"),
-        ).prefetch_related("documentos", "versiones__usuario").order_by("-fecha", "numero_corte", "adicional_letra")
+        ).select_related("solicitud__creada_por").prefetch_related("documentos", "versiones__usuario").order_by("-fecha", "numero_corte", "adicional_letra")
 
         if not hay_filtro:
             hace_30 = timezone.localdate() - timedelta(days=30)

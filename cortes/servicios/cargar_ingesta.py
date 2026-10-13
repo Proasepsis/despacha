@@ -41,6 +41,8 @@ def cargar_ingesta(
     La deduplicación se apoya en ``IngestionSiigo.rows_sha256``, por lo que la
     misma fotografía de datos no puede generar dos cortes.
     """
+    if ingestion.solicitud_id:
+        raise ErrorCarga("Las ingestas de solicitud crean sus cortes solas; no se cargan a mano.")
     filas = ingestion.payload.get("rows", [])
     documentos = filas_a_documentos_internos(filas)
     # Un envío sin movimiento (rows vacío, o nada que aplique a Despacha) queda registrado, pero no crea corte

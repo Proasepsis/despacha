@@ -10,9 +10,12 @@ class Corte(models.Model):
         ("con_error", "Con error"),
     ]
 
+    NUMERO_SOLICITUD = 3  # cortes creados solos a partir de una solicitud de extracción SIIGO
+
     CORTE_CHOICES = [
         (1, "Corte 1"),
         (2, "Corte 2"),
+        (NUMERO_SOLICITUD, "Solicitud"),
     ]
 
     archivo = models.CharField(max_length=255)
@@ -34,6 +37,13 @@ class Corte(models.Model):
         related_name="cortes_bloqueados",
     )
     bloqueado_hasta = models.DateTimeField(null=True, blank=True)
+    solicitud = models.ForeignKey(
+        "integraciones_siigo.SolicitudExtraccion",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="cortes",
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -53,8 +63,17 @@ class Corte(models.Model):
         ]
 
     @property
+    def nombre_corto(self):
+        """Nombre sin letra de adicional, para archivos y correos."""
+        return "Solicitud" if self.numero_corte == self.NUMERO_SOLICITUD else f"Corte {self.numero_corte}"
+
+    @property
+    def nombre_corto_min(self):
+        return self.nombre_corto.lower()
+
+    @property
     def display_corte(self):
-        base = f"Corte {self.numero_corte}"
+        base = self.nombre_corto
         if self.adicional_letra:
             base += self.adicional_letra
         return base

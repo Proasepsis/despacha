@@ -432,3 +432,110 @@ class PantallaTests(TestCase):
         r = self.client.post(reverse("siigo-solicitudes"), {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-01"})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(SolicitudExtraccion.objects.count(), 0)
+
+
+def fila_valida(num, seq, dia=date(2026, 9, 30)):
+    """Fila que Despacha acepta: F-1, cuenta 14, crédito, bodega 400 ubicación 5."""
+    return {
+        **fila(num, seq, dia),
+        "cuenta_contable": "14350501", "debito_credito": "C", "codigo_bodega": "400",
+        "codigo_ubicacion": "5", "linea_producto": "1", "grupo_producto": "2", "codigo_producto": "3",
+        "lote": "L1", "cantidad": 2, "descripcion_secuencia": "PRODUCTO", "nit": "900", "codigo_ciudad": "1",
+    }
+
+
+@con_token
+class CortesDeSolicitudTests(Base, TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("fac", password="x")
+
+    def completar(self, rows, ini=date(2026, 9, 30), fin=date(2026, 9, 30)):
+        s = SolicitudExtraccion.objects.create(fecha_inicio=ini, fecha_fin=fin, creada_por=self.user)
+        self.tomar()
+        p = payload(rows, cut=cut_solicitud(str(ini), str(fin)), solicitud_id=s.solicitud_id)
+        self.assertEqual(self.post_ingesta(p).status_code, 202)
+        r = self.estado(s.solicitud_id, estado="completada", extraction_id=p["extraction_id"])
+        self.assertEqual(r.status_code, 200)
+        s.refresh_from_db()
+        return s
+
+    def test_crea_el_corte_solo(self):
+        from cortes.models import Corte
+        s = self.completar([fila_valida("1", "1"), fila_valida("1", "2"), fila_valida("2", "1")])
+        corte = Corte.objects.get()
+        self.assertEqual(
+            (corte.numero_corte, corte.fecha, corte.solicitud, corte.usuario_carga, corte.estado, corte.display_corte),
+            (3, date(2026, 9, 30), s, self.user, "en_revision", "Solicitud"),
+        )
+        self.assertEqual(corte.documentos.count(), 2)
+        self.assertEqual(s.error, "")
+
+    def test_un_corte_por_dia(self):
+        from cortes.models import Corte
+        self.completar(
+            [fila_valida("1", "1", date(2026, 9, 29)), fila_valida("2", "1", date(2026, 9, 30))],
+            ini=date(2026, 9, 29),
+        )
+        self.assertEqual(sorted(Corte.objects.values_list("fecha", flat=True)), [date(2026, 9, 29), date(2026, 9, 30)])
+
+    def test_mismas_filas_no_repiten_el_corte(self):
+        from cortes.models import Corte
+        self.completar([fila_valida("1", "1")])
+        self.completar([fila_valida("1", "1")])
+        self.assertEqual(Corte.objects.count(), 1)
+
+    def test_filas_distintas_el_mismo_dia_crean_adicional(self):
+        from cortes.models import Corte
+        self.completar([fila_valida("1", "1")])
+        self.completar([fila_valida("1", "1"), fila_valida("1", "2")])
+        self.assertEqual(sorted(c.display_corte for c in Corte.objects.all()), ["Solicitud", "SolicitudA"])
+
+    def test_dia_sin_documentos_aplicables_no_crea_corte(self):
+        from cortes.models import Corte
+        s = self.completar([fila("1", "1")])  # sin cuenta 14 ni bodega 400
+        self.assertEqual(Corte.objects.count(), 0)
+        self.assertEqual((s.estado, s.error), ("completada", ""))
+
+    def test_si_falla_la_creacion_igual_queda_completada_con_el_motivo(self):
+        from unittest import mock
+        with mock.patch("integraciones_siigo.views.cargar_cortes_de_solicitud", side_effect=RuntimeError("boom")):
+            s = self.completar([fila_valida("1", "1")])
+        self.assertEqual(s.estado, "completada")
+        self.assertIn("boom", s.error)
+
+    def test_solicitud_sin_usuario_avisa(self):
+        s = SolicitudExtraccion.objects.create(fecha_inicio=date(2026, 9, 30), fecha_fin=date(2026, 9, 30))
+        self.tomar()
+        p = payload([fila_valida("1", "1")], cut=cut_solicitud(), solicitud_id=s.solicitud_id)
+        self.post_ingesta(p)
+        self.assertEqual(self.estado(s.solicitud_id, estado="completada").status_code, 200)
+        s.refresh_from_db()
+        self.assertIn("no tiene usuario", s.error)
+
+    def test_fallida_no_crea_cortes(self):
+        from cortes.models import Corte
+        s = SolicitudExtraccion.objects.create(fecha_inicio=date(2026, 9, 30), fecha_fin=date(2026, 9, 30), creada_por=self.user)
+        self.tomar()
+        self.estado(s.solicitud_id, estado="fallida", error="x")
+        self.assertEqual(Corte.objects.count(), 0)
+
+    def test_la_lista_muestra_quien_cuando_y_que_dia(self):
+        self.completar([fila_valida("1", "1")])
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("lista_cortes"), {"desde": "2026-09-01"})
+        self.assertContains(r, "Solicitud")
+        self.assertContains(r, "Pedido por fac")
+        self.assertContains(r, "día 30/09")
+
+    def test_nombre_de_archivo(self):
+        from cortes.models import Corte
+        from cortes.servicios.nombrado import nombre_archivo_corte
+        self.completar([fila_valida("1", "1")])
+        self.assertEqual(nombre_archivo_corte(Corte.objects.get()), "SEP 30 solicitud.xls")
+
+    def test_la_ingesta_de_solicitud_no_se_carga_a_mano(self):
+        from cortes.servicios.cargar import ErrorCarga
+        from cortes.servicios.cargar_ingesta import cargar_ingesta
+        self.completar([fila_valida("1", "1")])
+        with self.assertRaises(ErrorCarga):
+            cargar_ingesta(IngestionSiigo.objects.get(), usuario=self.user)
