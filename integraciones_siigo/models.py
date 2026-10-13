@@ -93,10 +93,13 @@ class FilaSiigo(models.Model):
     ingestion = models.ForeignKey(IngestionSiigo, on_delete=models.CASCADE, related_name="filas_siigo")
     no_presente_en_siigo = models.BooleanField(default=False)
 
+    # Posición de la fila en el envío: `secuencia` NO es única dentro de un documento
+    orden = models.PositiveIntegerField(default=0)
+
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["tipo_comprobante", "codigo_comprobante", "numero_documento", "secuencia"],
-                name="fila_siigo_unica",
+        indexes = [
+            models.Index(
+                fields=["tipo_comprobante", "codigo_comprobante", "numero_documento"],
+                name="fila_siigo_documento_idx",
             )
         ]

@@ -101,7 +101,7 @@ def reemplazar_filas(ingestion, desde: date, hasta: date):
     """Foto completa de [desde, hasta]: reemplaza las filas de los documentos recibidos y marca
     como no_presente_en_siigo los que Despacha tenía en el rango y no vinieron (no se borran)."""
     nuevas, claves = [], set()
-    for fila in ingestion.payload["rows"]:
+    for orden, fila in enumerate(ingestion.payload["rows"]):
         clave = tuple(_txt(fila.get(k)) for k in ("tipo_comprobante", "codigo_comprobante", "numero_documento"))
         claves.add(clave)
         nuevas.append(
@@ -110,6 +110,7 @@ def reemplazar_filas(ingestion, desde: date, hasta: date):
                 codigo_comprobante=clave[1],
                 numero_documento=clave[2],
                 secuencia=_txt(fila.get("secuencia")),
+                orden=orden,
                 fecha_documento=_fecha_documento(fila),
                 fila=fila,
                 ingestion=ingestion,
