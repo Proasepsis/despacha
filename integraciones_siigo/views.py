@@ -13,6 +13,8 @@ from django.utils.dateparse import parse_date, parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from core.adaptadores.api_siigo.convertir import filas_a_documentos_internos
+
 from . import solicitudes
 from .models import IngestionSiigo, SolicitudExtraccion
 
@@ -146,6 +148,7 @@ def estado_solicitud(request, solicitud_id):
             extraction_id = ingestion.extraction_id
             if row_count is None:
                 row_count = ingestion.row_count
+            solicitud.documentos = len(filas_a_documentos_internos(ingestion.payload["rows"]))
         solicitud.estado = estado
         solicitud.extraction_id = extraction_id
         solicitud.row_count = row_count

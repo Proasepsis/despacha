@@ -148,9 +148,7 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
             "corte_sugerido": sugerir_corte(),
             "solicitud_form": solicitud_form or SolicitudForm(),
             "solicitudes": recientes,
-            "hay_solicitudes_activas": any(
-                s.estado in (SolicitudExtraccion.PENDIENTE, SolicitudExtraccion.TOMADA) for s in recientes
-            ),
+            "solicitudes_completadas": sum(s.estado == SolicitudExtraccion.COMPLETADA for s in recientes),
             **extra,
         })
 
@@ -222,6 +220,32 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                 return redirect(f"{reverse('cargar_corte')}?formato={FORMATO_API_SIIGO}")
         form = CargarCorteForm(initial={"numero_corte": str(sugerir_corte()), "formato_origen": FORMATO_API_SIIGO})
         return self._render(request, form, solicitud_form)
+
+
+class SolicitudesEstadoView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
+    """Estado de las últimas solicitudes SIIGO; la pantalla de carga lo consulta para actualizarse sola."""
+
+    raise_exception = True
+
+    def get(self, request):
+        solicitudes.vencer_tomadas()
+        lista = []
+        for s in SolicitudExtraccion.objects.select_related("creada_por")[:8]:
+            rango = f"{s.fecha_inicio:%d/%m/%Y}"
+            if s.fecha_fin != s.fecha_inicio:
+                rango += f" – {s.fecha_fin:%d/%m/%Y}"
+            lista.append({
+                "id": str(s.solicitud_id),
+                "rango": rango,
+                "estado": s.estado,
+                "estado_texto": s.get_estado_display(),
+                "pedida_por": s.creada_por.username if s.creada_por else "—",
+                "hora": timezone.localtime(s.creada_en).strftime("%d/%m %H:%M"),
+                "filas": s.row_count,
+                "documentos": s.documentos,
+                "error": s.error,
+            })
+        return JsonResponse({"solicitudes": lista})
 
 
 class DetalleCorteView(LoginRequiredMixin, DetailView):

@@ -337,6 +337,23 @@ class EstadoTests(Base, TestCase):
         r = self.estado(s.solicitud_id, estado="completada", extraction_id=str(uuid.uuid4()))
         self.assertEqual(r.status_code, 409)
 
+    def test_completada_guarda_cuantos_documentos_aplican(self):
+        s = self.nueva(); self.tomar()
+        p = payload([fila_valida("1", "1"), fila_valida("1", "2"), fila_valida("2", "1"), fila("3", "1")],
+                    cut=cut_solicitud(), solicitud_id=s.solicitud_id)
+        self.post_ingesta(p)
+        self.estado(s.solicitud_id, estado="completada", extraction_id=p["extraction_id"])
+        s.refresh_from_db()
+        self.assertEqual((s.row_count, s.documentos), (4, 2))  # el documento 3 no pasa los filtros
+
+    def test_completada_sin_documentos_aplicables_lo_dice(self):
+        s = self.nueva(); self.tomar()
+        p = payload([fila("1", "1")], cut=cut_solicitud(), solicitud_id=s.solicitud_id)
+        self.post_ingesta(p)
+        self.estado(s.solicitud_id, estado="completada")
+        s.refresh_from_db()
+        self.assertEqual(s.documentos, 0)
+
     def test_fallida_guarda_error(self):
         s = self.nueva(); self.tomar()
         self.assertEqual(self.estado(s.solicitud_id, estado="fallida", error="GETMOV falló").status_code, 200)
@@ -435,6 +452,42 @@ class PantallaTests(TestCase):
         self.assertContains(r, "30/09/2026")
         self.assertContains(r, "adm")
         self.assertContains(r, 'value="API_SIIGO" selected')
+
+    def test_el_estado_se_consulta_sin_recargar(self):
+        self.client.force_login(self.admin)
+        self.client.post(self.url, self.datos)
+        r = self.client.get(reverse("solicitudes_estado"))
+        self.assertEqual(r.status_code, 200)
+        [s] = r.json()["solicitudes"]
+        self.assertEqual(
+            (s["rango"], s["estado"], s["estado_texto"], s["pedida_por"], s["filas"], s["error"]),
+            ("30/09/2026", "pendiente", "Pendiente", "adm", None, ""),
+        )
+        SolicitudExtraccion.objects.update(estado="completada", row_count=7)
+        [s] = self.client.get(reverse("solicitudes_estado")).json()["solicitudes"]
+        self.assertEqual((s["estado"], s["filas"], s["documentos"]), ("completada", 7, None))
+
+    def test_la_tabla_avisa_cuando_no_hay_documentos_para_despacha(self):
+        self.client.force_login(self.admin)
+        SolicitudExtraccion.objects.create(
+            fecha_inicio=date(2026, 10, 1), fecha_fin=date(2026, 10, 1), creada_por=self.admin,
+            estado="completada", row_count=111, documentos=0,
+        )
+        self.assertContains(self.client.get(self.url, {"formato": "API_SIIGO"}), "Sin documentos para Despacha")
+
+    def test_la_pantalla_trae_el_sondeo_y_ya_no_recarga_la_pagina(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(self.url, {"formato": "API_SIIGO"})
+        self.assertContains(r, reverse("solicitudes_estado"))
+        self.assertContains(r, "solicitudes-body")
+        self.assertNotContains(r, "window.location.href")
+
+    def test_estado_solo_para_facturacion_y_admin(self):
+        self.assertEqual(self.client.get(reverse("solicitudes_estado")).status_code, 403)  # endpoint JSON: sin sesión no redirige
+        alm = User.objects.create_user("alm", password="x")
+        alm.groups.add(Group.objects.get_or_create(name="almacenamiento")[0])
+        self.client.force_login(alm)
+        self.assertEqual(self.client.get(reverse("solicitudes_estado")).status_code, 403)
 
     def test_doble_envio_no_duplica_y_avisa(self):
         self.client.force_login(self.admin)
