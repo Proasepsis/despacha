@@ -253,6 +253,18 @@ class IngestaSolicitudTests(Base, TestCase):
             sorted(FilaSiigo.objects.values_list("secuencia", flat=True)), ["1", "9"]
         )
 
+    def test_secuencia_repetida_dentro_de_un_documento(self):
+        # F-001-56647 llegó en producción con la secuencia 5 repetida: debe guardarse completo
+        s1 = self.nueva(); self.tomar()
+        self.assertEqual(self.enviar([fila("56647", "5"), fila("56647", "5"), fila("56647", "6")], s1).status_code, 202)
+        self.assertEqual(
+            list(FilaSiigo.objects.order_by("orden").values_list("secuencia", "orden")), [("5", 0), ("5", 1), ("6", 2)]
+        )
+        self.estado(s1.solicitud_id, estado="completada")
+        s2 = self.nueva(); self.tomar()
+        self.assertEqual(self.enviar([fila("56647", "5"), fila("56647", "5")], s2).status_code, 202)
+        self.assertEqual(FilaSiigo.objects.count(), 2)  # reemplaza, no suma
+
     def test_marca_ausentes_sin_borrar(self):
         s1 = self.nueva(); self.tomar()
         self.enviar([fila("1", "1"), fila("2", "1")], s1)
