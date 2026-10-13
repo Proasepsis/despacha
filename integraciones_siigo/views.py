@@ -13,15 +13,10 @@ from django.utils.dateparse import parse_date, parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-import logging
-
-from cortes.servicios.cargar_solicitud import cargar_cortes_de_solicitud
-
 from . import solicitudes
 from .models import IngestionSiigo, SolicitudExtraccion
 
 
-logger = logging.getLogger(__name__)
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMAS_SOPORTADOS = {"1.0", "1.1", "1.2"}
 CAMPOS_1_2 = ("anio_documento", "mes_documento", "dia_documento", "secuencia")
@@ -77,19 +72,6 @@ def ingest_siigo(request):
         if solicitud is not None:
             solicitudes.reemplazar_filas(ingestion, solicitud.fecha_inicio, solicitud.fecha_fin)
     return _acuse(ingestion, "accepted", 202)
-
-
-def _crear_cortes(solicitud, ingestion):
-    """Crea los cortes de la solicitud. Si falla, la solicitud igual queda completada y el motivo en `error`."""
-    if solicitud.creada_por_id is None:
-        return "Cortes no creados: la solicitud no tiene usuario"
-    try:
-        with transaction.atomic():
-            cargar_cortes_de_solicitud(solicitud, ingestion)
-    except Exception as e:  # noqa: BLE001 - el agente ya entregó los datos; no se le debe devolver un 500
-        logger.exception("No se pudieron crear los cortes de la solicitud %s", solicitud.solicitud_id)
-        return f"Cortes no creados: {e}"[:1000]
-    return ""
 
 
 def _acuse(ingestion, status_text, status):
@@ -169,8 +151,6 @@ def estado_solicitud(request, solicitud_id):
         solicitud.row_count = row_count
         solicitud.error = error[:1000]
         solicitud.completada_en = timezone.now()
-        if estado == SolicitudExtraccion.COMPLETADA:
-            solicitud.error = _crear_cortes(solicitud, ingestion)
         solicitud.save()
     return JsonResponse({"solicitud_id": str(solicitud.solicitud_id), "estado": estado})
 

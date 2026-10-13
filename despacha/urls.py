@@ -7,8 +7,6 @@ admin.site.site_header = "Administración Despacha"
 admin.site.site_title  = "Despacha"
 admin.site.index_title = "Panel de administración"
 
-from integraciones_siigo.views_ui import SolicitudesView
-
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="lista_cortes"), name="home"),
     path(
@@ -22,7 +20,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("admin-auditoria/", include("core.urls")),
     path("cortes/", include("cortes.urls")),
-    path("siigo/solicitudes/", SolicitudesView.as_view(), name="siigo-solicitudes"),
     path("api/v1/siigo/", include("integraciones_siigo.urls")),
     path("api/v1/vigia/", include("api_vigia.urls")),
 ]

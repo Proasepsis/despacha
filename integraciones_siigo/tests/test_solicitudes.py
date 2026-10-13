@@ -385,51 +385,55 @@ class IdempotenciaTests(TestCase):
 
 
 class PantallaTests(TestCase):
+    """La solicitud se pide dentro de Cargar archivo → SIIGO API; no hay pantalla aparte."""
+
     def setUp(self):
+        self.url = reverse("cargar_corte")
+        self.datos = {"accion": "solicitar", "fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-30"}
         self.admin = User.objects.create_user("adm", password="x")
         self.admin.groups.add(Group.objects.get_or_create(name="admin")[0])
+
+    def test_ya_no_hay_pantalla_ni_pestana_aparte(self):
+        from django.urls import NoReverseMatch
+        with self.assertRaises(NoReverseMatch):
+            reverse("siigo-solicitudes")
+        self.client.force_login(self.admin)
+        self.assertNotContains(self.client.get(reverse("lista_cortes")), "Solicitudes SIIGO")
 
     def test_facturacion_puede_pedir(self):
         fac = User.objects.create_user("fac", password="x")
         fac.groups.add(Group.objects.get_or_create(name="facturacion")[0])
         self.client.force_login(fac)
-        r = self.client.post(reverse("siigo-solicitudes"), {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-30"})
-        self.assertEqual(r.status_code, 302)
+        r = self.client.post(self.url, self.datos)
+        self.assertRedirects(r, f"{self.url}?formato=API_SIIGO", fetch_redirect_response=False)
         self.assertEqual(SolicitudExtraccion.objects.get().creada_por, fac)
 
-    def test_almacenamiento_no(self):
+    def test_almacenamiento_no_puede(self):
         alm = User.objects.create_user("alm", password="x")
         alm.groups.add(Group.objects.get_or_create(name="almacenamiento")[0])
         self.client.force_login(alm)
-        self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 403)
+        self.assertEqual(self.client.post(self.url, self.datos).status_code, 403)
+        self.assertEqual(SolicitudExtraccion.objects.count(), 0)
 
-    def test_anonimo_va_al_login(self):
-        self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 302)
-
-    def test_sin_grupo_403(self):
-        otro = User.objects.create_user("otro", password="x")
-        self.client.force_login(otro)
-        self.assertEqual(self.client.get(reverse("siigo-solicitudes")).status_code, 403)
-
-    def test_crear_y_listar(self):
+    def test_crear_y_ver_en_la_lista(self):
         self.client.force_login(self.admin)
-        r = self.client.post(reverse("siigo-solicitudes"), {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-30"})
-        self.assertEqual(r.status_code, 302)
-        s = SolicitudExtraccion.objects.get()
-        self.assertEqual(s.creada_por, self.admin)
-        self.assertContains(self.client.get(reverse("siigo-solicitudes")), "adm")
+        self.client.post(self.url, self.datos)
+        r = self.client.get(self.url, {"formato": "API_SIIGO"})
+        self.assertContains(r, "Pedir a SIIGO")
+        self.assertContains(r, "30/09/2026")
+        self.assertContains(r, "adm")
+        self.assertContains(r, 'value="API_SIIGO" selected')
 
     def test_doble_envio_no_duplica_y_avisa(self):
         self.client.force_login(self.admin)
-        datos = {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-30"}
-        self.client.post(reverse("siigo-solicitudes"), datos)
-        r = self.client.post(reverse("siigo-solicitudes"), datos)
+        self.client.post(self.url, self.datos)
+        r = self.client.post(self.url, self.datos)
         self.assertContains(r, "Ya hay una solicitud pendiente")
         self.assertEqual(SolicitudExtraccion.objects.count(), 1)
 
     def test_rango_invalido_no_crea(self):
         self.client.force_login(self.admin)
-        r = self.client.post(reverse("siigo-solicitudes"), {"fecha_inicio": "2026-09-30", "fecha_fin": "2026-09-01"})
+        r = self.client.post(self.url, {**self.datos, "fecha_fin": "2026-09-01"})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(SolicitudExtraccion.objects.count(), 0)
 
@@ -445,7 +449,7 @@ def fila_valida(num, seq, dia=date(2026, 9, 30)):
 
 
 @con_token
-class CortesDeSolicitudTests(Base, TestCase):
+class CargaDeSolicitudTests(Base, TestCase):
     def setUp(self):
         self.user = User.objects.create_user("fac", password="x")
 
@@ -459,79 +463,10 @@ class CortesDeSolicitudTests(Base, TestCase):
         s.refresh_from_db()
         return s
 
-    def test_crea_el_corte_solo(self):
+    def test_completar_una_solicitud_no_crea_cortes(self):
         from cortes.models import Corte
-        s = self.completar([fila_valida("1", "1"), fila_valida("1", "2"), fila_valida("2", "1")])
-        corte = Corte.objects.get()
-        self.assertEqual(
-            (corte.numero_corte, corte.fecha, corte.solicitud, corte.usuario_carga, corte.estado, corte.display_corte),
-            (3, date(2026, 9, 30), s, self.user, "en_revision", "Solicitud"),
-        )
-        self.assertEqual(corte.documentos.count(), 2)
-        self.assertEqual(s.error, "")
-
-    def test_un_corte_por_dia(self):
-        from cortes.models import Corte
-        self.completar(
-            [fila_valida("1", "1", date(2026, 9, 29)), fila_valida("2", "1", date(2026, 9, 30))],
-            ini=date(2026, 9, 29),
-        )
-        self.assertEqual(sorted(Corte.objects.values_list("fecha", flat=True)), [date(2026, 9, 29), date(2026, 9, 30)])
-
-    def test_mismas_filas_no_repiten_el_corte(self):
-        from cortes.models import Corte
-        self.completar([fila_valida("1", "1")])
-        self.completar([fila_valida("1", "1")])
-        self.assertEqual(Corte.objects.count(), 1)
-
-    def test_filas_distintas_el_mismo_dia_crean_adicional(self):
-        from cortes.models import Corte
-        self.completar([fila_valida("1", "1")])
-        self.completar([fila_valida("1", "1"), fila_valida("1", "2")])
-        self.assertEqual(sorted(c.display_corte for c in Corte.objects.all()), ["Solicitud", "SolicitudA"])
-
-    def test_dia_sin_documentos_aplicables_no_crea_corte(self):
-        from cortes.models import Corte
-        s = self.completar([fila("1", "1")])  # sin cuenta 14 ni bodega 400
-        self.assertEqual(Corte.objects.count(), 0)
-        self.assertEqual((s.estado, s.error), ("completada", ""))
-
-    def test_si_falla_la_creacion_igual_queda_completada_con_el_motivo(self):
-        from unittest import mock
-        with mock.patch("integraciones_siigo.views.cargar_cortes_de_solicitud", side_effect=RuntimeError("boom")):
-            s = self.completar([fila_valida("1", "1")])
-        self.assertEqual(s.estado, "completada")
-        self.assertIn("boom", s.error)
-
-    def test_solicitud_sin_usuario_avisa(self):
-        s = SolicitudExtraccion.objects.create(fecha_inicio=date(2026, 9, 30), fecha_fin=date(2026, 9, 30))
-        self.tomar()
-        p = payload([fila_valida("1", "1")], cut=cut_solicitud(), solicitud_id=s.solicitud_id)
-        self.post_ingesta(p)
-        self.assertEqual(self.estado(s.solicitud_id, estado="completada").status_code, 200)
-        s.refresh_from_db()
-        self.assertIn("no tiene usuario", s.error)
-
-    def test_fallida_no_crea_cortes(self):
-        from cortes.models import Corte
-        s = SolicitudExtraccion.objects.create(fecha_inicio=date(2026, 9, 30), fecha_fin=date(2026, 9, 30), creada_por=self.user)
-        self.tomar()
-        self.estado(s.solicitud_id, estado="fallida", error="x")
-        self.assertEqual(Corte.objects.count(), 0)
-
-    def test_la_lista_muestra_quien_cuando_y_que_dia(self):
-        self.completar([fila_valida("1", "1")])
-        self.client.force_login(self.user)
-        r = self.client.get(reverse("lista_cortes"), {"desde": "2026-09-01"})
-        self.assertContains(r, "Solicitud")
-        self.assertContains(r, "Pedido por fac")
-        self.assertContains(r, "día 30/09")
-
-    def test_nombre_de_archivo(self):
-        from cortes.models import Corte
-        from cortes.servicios.nombrado import nombre_archivo_corte
-        self.completar([fila_valida("1", "1")])
-        self.assertEqual(nombre_archivo_corte(Corte.objects.get()), "SEP 30 solicitud.xls")
+        s = self.completar([fila_valida("1", "1")])
+        self.assertEqual((s.estado, s.error, Corte.objects.count()), ("completada", "", 0))
 
     def _ingesta_con_horas(self):
         filas = [
@@ -549,7 +484,7 @@ class CortesDeSolicitudTests(Base, TestCase):
         corte, _ = cargar_ingesta(ingesta, usuario=self.user, numero_corte=1)
         self.assertEqual((corte.fecha, corte.numero_corte, corte.display_corte), (date(2026, 9, 30), 1, "Corte 1"))
         self.assertEqual(sorted(corte.documentos.values_list("factura", flat=True)), ["1", "3"])
-        self.assertEqual(Corte.objects.filter(numero_corte=3).count(), 1)  # el automático sigue ahí
+        self.assertEqual(Corte.objects.count(), 1)  # la solicitud no crea cortes sola
 
     def test_la_misma_foto_se_carga_como_corte_1_y_como_corte_2(self):
         from cortes.servicios.cargar_ingesta import cargar_ingesta

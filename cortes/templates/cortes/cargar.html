@@ -66,6 +66,55 @@
     </form>
 </div>
 
+<div class="card" id="solicitud-card" style="max-width:520px;display:none;margin-top:1rem;">
+    <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem;letter-spacing:.5px;">
+        PEDIR A SIIGO
+    </p>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">
+        Elige el día o rango. SIIGO lo extrae solo y, al terminar, aparece en la lista “Extracción SIIGO” de arriba.
+    </p>
+    <form id="solicitud-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="solicitar">
+        {% if solicitud_form.non_field_errors %}<div class="msg msg-error">{{ solicitud_form.non_field_errors }}</div>{% endif %}
+        <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+            <div class="form-group" style="margin:0;">
+                <label for="{{ solicitud_form.fecha_inicio.id_for_label }}">Desde</label>
+                {{ solicitud_form.fecha_inicio }}
+                {{ solicitud_form.fecha_inicio.errors }}
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="{{ solicitud_form.fecha_fin.id_for_label }}">Hasta</label>
+                {{ solicitud_form.fecha_fin }}
+                {{ solicitud_form.fecha_fin.errors }}
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-solicitar">Pedir a SIIGO</button>
+        </div>
+    </form>
+
+    {% if solicitudes %}
+    <div style="overflow-x:auto;margin-top:1.25rem;">
+        <table style="width:100%;font-size:12px;border-collapse:collapse;">
+            <thead><tr style="text-align:left;color:var(--text-muted);">
+                <th>Fecha pedida</th><th>Estado</th><th>Pedida por</th><th>Hora</th><th>Filas</th><th>Error</th>
+            </tr></thead>
+            <tbody>
+            {% for s in solicitudes %}
+                <tr>
+                    <td>{{ s.fecha_inicio|date:"d/m/Y" }}{% if s.fecha_fin != s.fecha_inicio %} – {{ s.fecha_fin|date:"d/m/Y" }}{% endif %}</td>
+                    <td>{{ s.get_estado_display }}</td>
+                    <td>{{ s.creada_por.username|default:"—" }}</td>
+                    <td>{{ s.creada_en|date:"d/m H:i" }}</td>
+                    <td>{{ s.row_count|default_if_none:"—" }}</td>
+                    <td>{{ s.error }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
 <div id="upload-overlay"
      style="display:none;position:fixed;inset:0;background:rgba(8,11,18,.72);z-index:9999;
             align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
@@ -96,15 +145,32 @@ function toggleFormato() {
     var formato = document.getElementById('{{ form.formato_origen.id_for_label }}').value;
     var archivoField = document.getElementById('archivo-field');
     var ingestionField = document.getElementById('ingestion-field');
+    var solicitudCard = document.getElementById('solicitud-card');
     if (formato === 'API_SIIGO') {
         archivoField.style.display = 'none';
         ingestionField.style.display = '';
+        solicitudCard.style.display = '';
     } else {
         archivoField.style.display = '';
         ingestionField.style.display = 'none';
+        solicitudCard.style.display = 'none';
     }
 }
 document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
 toggleFormato();
+
+document.getElementById('solicitud-form').addEventListener('submit', function() {
+    document.getElementById('btn-solicitar').disabled = true;
+});
+
+{% if hay_solicitudes_activas %}
+// Mientras haya solicitudes en curso, refresca solo para que la extracción aparezca en la lista
+setTimeout(function() {
+    if (document.getElementById('{{ form.formato_origen.id_for_label }}').value === 'API_SIIGO' &&
+        document.activeElement === document.body) {
+        window.location.href = '?formato=API_SIIGO';
+    }
+}, 6000);
+{% endif %}
 </script>
 {% endblock %}

@@ -100,12 +100,6 @@
                     <span>v{{ corte.version_actual }}</span>
                     <span class="meta-dot">·</span>
                     <span>{{ corte.usuario_carga.username }}</span>
-                    {% if corte.solicitud %}
-                    <span class="meta-dot">·</span>
-                    <span class="meta-solicitud" title="Solicitada por {{ corte.solicitud.creada_por.username }} el {{ corte.solicitud.creada_en|date:'d/m/Y H:i' }} para {{ corte.solicitud.fecha_inicio|date:'d/m/Y' }}{% if corte.solicitud.fecha_fin != corte.solicitud.fecha_inicio %} a {{ corte.solicitud.fecha_fin|date:'d/m/Y' }}{% endif %}">
-                        Pedido por {{ corte.solicitud.creada_por.username|default:"—" }} · {{ corte.solicitud.creada_en|date:"d/m H:i" }} · día {{ corte.fecha|date:"d/m" }}
-                    </span>
-                    {% endif %}
                     {% if corte.usuario_genera %}
                     <span class="meta-dot">·</span>
                     <span class="meta-genera">{{ corte.usuario_genera }}</span>
@@ -240,7 +234,6 @@
 }
 .meta-dot { color: var(--border-mid); }
 .meta-genera { color: var(--accent); }
-.meta-solicitud { color: var(--text-muted); font-style: italic; }
 
 .grupo-sep {
     height: 0;
