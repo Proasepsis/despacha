@@ -67,7 +67,7 @@ def _enviar(destinatarios: list[str], asunto: str, cuerpo: str) -> bool:
 
 def notificar_corte_generado(corte) -> bool:
     prefijo = _prefijo_asunto()
-    asunto = f"{prefijo}Corte {corte.numero_corte} {corte.fecha:%d/%m/%Y} generado"
+    asunto = f"{prefijo}{corte.nombre_corto} {corte.fecha:%d/%m/%Y} generado"
 
     ver = corte.version_actual
     drive_url = ""
@@ -76,7 +76,7 @@ def notificar_corte_generado(corte) -> bool:
         drive_url = ultima_version.drive_url
 
     cuerpo = (
-        f"Corte {corte.numero_corte} del {corte.fecha:%d/%m/%Y} generado.\n\n"
+        f"{corte.nombre_corto} del {corte.fecha:%d/%m/%Y} generado.\n\n"
         f"Versión: v{ver}\n"
         f"Total documentos: {corte.documentos.count()}\n"
     )
@@ -92,7 +92,7 @@ def notificar_corte_regenerado(corte) -> bool:
     ver = corte.version_actual
     asunto = (
         f"{prefijo}ATENCIÓN: nueva versión v{ver} "
-        f"del corte {corte.numero_corte} {corte.fecha:%d/%m/%Y}"
+        f"del {corte.nombre_corto_min} {corte.fecha:%d/%m/%Y}"
     )
 
     drive_url = ""
@@ -103,7 +103,7 @@ def notificar_corte_regenerado(corte) -> bool:
 
     cuerpo = (
         f"ATENCIÓN: este archivo reemplaza al enviado previamente.\n\n"
-        f"Corte {corte.numero_corte} del {corte.fecha:%d/%m/%Y}\n"
+        f"{corte.nombre_corto} del {corte.fecha:%d/%m/%Y}\n"
         f"Nueva versión: v{ver}\n"
     )
     if motivo:
@@ -119,12 +119,12 @@ def notificar_sin_maestra_detectado(corte, productos_codigos: list[str]) -> bool
     prefijo = _prefijo_asunto()
     asunto = (
         f"{prefijo}Productos sin maestra detectados "
-        f"en corte {corte.numero_corte} {corte.fecha:%d/%m/%Y}"
+        f"en {corte.nombre_corto_min} {corte.fecha:%d/%m/%Y}"
     )
 
     cuerpo = (
         f"Se detectaron {len(productos_codigos)} código(s) sin producto en la maestra "
-        f"en el corte {corte.numero_corte} del {corte.fecha:%d/%m/%Y}.\n\n"
+        f"en el {corte.nombre_corto_min} del {corte.fecha:%d/%m/%Y}.\n\n"
         f"Códigos sin maestra:\n"
     )
     for codigo in productos_codigos:

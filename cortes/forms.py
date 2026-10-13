@@ -53,7 +53,7 @@ class CargarCorteForm(forms.Form):
         # y se vuelve lenta, guardar el conteo al recibir la ingesta.
         documentos = {
             ingesta.pk: len(filas_a_documentos_internos(ingesta.payload.get("rows", [])))
-            for ingesta in IngestionSiigo.objects.filter(row_count__gt=0).only("pk", "payload")
+            for ingesta in IngestionSiigo.objects.filter(row_count__gt=0, solicitud__isnull=True).only("pk", "payload")
         }
         campo = self.fields["ingestion"]
         campo.documentos_por_ingesta = documentos

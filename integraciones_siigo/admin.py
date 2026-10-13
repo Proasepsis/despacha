@@ -7,7 +7,7 @@ from cortes.servicios.cargar import (
 )
 from cortes.servicios.cargar_ingesta import cargar_ingesta
 
-from .models import IngestionSiigo
+from .models import FilaSiigo, IngestionSiigo, SolicitudExtraccion
 
 
 @admin.register(IngestionSiigo)
@@ -75,3 +75,17 @@ class IngestionSiigoAdmin(admin.ModelAdmin):
                 f"{creados} cortes creados. Errores: " + " | ".join(errores),
                 level=messages.WARNING,
             )
+
+
+@admin.register(SolicitudExtraccion)
+class SolicitudExtraccionAdmin(admin.ModelAdmin):
+    list_display = ("solicitud_id", "fecha_inicio", "fecha_fin", "estado", "creada_por", "creada_en", "row_count")
+    list_filter = ("estado",)
+    readonly_fields = ("solicitud_id", "creada_en")
+
+
+@admin.register(FilaSiigo)
+class FilaSiigoAdmin(admin.ModelAdmin):
+    list_display = ("tipo_comprobante", "codigo_comprobante", "numero_documento", "secuencia", "fecha_documento", "no_presente_en_siigo")
+    list_filter = ("no_presente_en_siigo", "tipo_comprobante")
+    search_fields = ("numero_documento",)

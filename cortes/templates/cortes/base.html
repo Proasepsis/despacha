@@ -704,6 +704,14 @@
             <span class="nav-kbd">Alt+N</span>
         </a>
         {% endif %}
+        {% if 'admin' in grupos_usuario or 'facturacion' in grupos_usuario %}
+        <a href="{% url 'siigo-solicitudes' %}" class="nav-link {% if request.resolver_match.url_name == 'siigo-solicitudes' %}active{% endif %}">
+            <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm1 3v4l3 2-.5.9L7.5 9V4H9z"/>
+            </svg>
+            Solicitudes SIIGO
+        </a>
+        {% endif %}
         {% if 'admin' in grupos_usuario or 'consultar' in grupos_usuario %}
         <span class="nav-section">Sistema</span>
         <a href="{% url 'admin_auditoria' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_auditoria' %}active{% endif %}">
