@@ -551,6 +551,30 @@ class CargaDeSolicitudTests(Base, TestCase):
         self.assertEqual(sorted(corte.documentos.values_list("factura", flat=True)), ["1", "3"])
         self.assertEqual(Corte.objects.count(), 1)  # la solicitud no crea cortes sola
 
+    def test_dia_completo_trae_todo_sin_filtrar_la_franja(self):
+        from cortes.servicios.cargar_ingesta import cargar_ingesta
+        ingesta = self._ingesta_con_horas()
+        corte, _ = cargar_ingesta(ingesta, usuario=self.user, numero_corte=1, dia_completo=True)
+        self.assertEqual(sorted(corte.documentos.values_list("factura", flat=True)), ["1", "2", "3"])
+
+    def test_dia_completo_y_por_franja_no_se_confunden_como_duplicado(self):
+        from cortes.servicios.cargar_ingesta import cargar_ingesta
+        ingesta = self._ingesta_con_horas()
+        cargar_ingesta(ingesta, usuario=self.user, numero_corte=1)
+        corte, _ = cargar_ingesta(ingesta, usuario=self.user, numero_corte=1, es_adicional=True, dia_completo=True)
+        self.assertEqual(corte.documentos.count(), 3)
+
+    def test_la_vista_acepta_dia_completo(self):
+        from cortes.models import Corte
+        ingesta = self._ingesta_con_horas()
+        self.user.groups.add(Group.objects.get_or_create(name="facturacion")[0])
+        self.client.force_login(self.user)
+        r = self.client.post(reverse("cargar_corte"), {
+            "formato_origen": "API_SIIGO", "ingestion": ingesta.pk, "numero_corte": "1", "dia_completo": "on",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Corte.objects.get().documentos.count(), 3)
+
     def test_la_misma_foto_se_carga_como_corte_1_y_como_corte_2(self):
         from cortes.servicios.cargar_ingesta import cargar_ingesta
         ingesta = self._ingesta_con_horas()

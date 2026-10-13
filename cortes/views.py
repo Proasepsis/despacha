@@ -178,6 +178,7 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                     usuario=request.user,
                     numero_corte=numero_corte,
                     es_adicional=es_adicional,
+                    dia_completo=form.cleaned_data.get("dia_completo", False),
                 )
             else:
                 corte, resultado = cargar_archivo(
