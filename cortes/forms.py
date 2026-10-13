@@ -53,6 +53,11 @@ class CargarCorteForm(forms.Form):
         help_text="Sugerido según la hora; puede ajustarse.",
     )
     es_adicional = forms.BooleanField(required=False, label="Es adicional")
+    dia_completo = forms.BooleanField(
+        required=False,
+        label="Día completo (sin filtrar por franja horaria)",
+        help_text="Solo para extracciones de una solicitud: carga todos los documentos del día, como un archivo.",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
