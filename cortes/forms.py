@@ -1,5 +1,6 @@
 from django import forms
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from core.adaptadores.api_siigo.convertir import filas_a_documentos_internos
 from cortes.servicios.cargar_ingesta import NUMERO_POR_CUT
@@ -19,6 +20,13 @@ class IngestionChoiceField(forms.ModelChoiceField):
             partes.append(f"Recuperación del {obj.window_start:%d/%m}")
         elif nombre == "extra":
             partes.append("Extra")
+        elif nombre == "solicitud":
+            cut = obj.payload["cut"]
+            desde, hasta = parse_date(cut["desde"]), parse_date(cut["hasta"])
+            rango = f"{desde:%d/%m}" + (f" al {hasta:%d/%m}" if hasta != desde else "")
+            partes.append(f"Solicitud del {rango}")
+            if obj.solicitud and obj.solicitud.creada_por:
+                partes.append(f"pedida por {obj.solicitud.creada_por.username}")
         n = self.documentos_por_ingesta.get(obj.pk, 0)
         partes.append(f"{n} documento{'' if n == 1 else 's'}")
         return " · ".join(partes)
@@ -53,12 +61,13 @@ class CargarCorteForm(forms.Form):
         # y se vuelve lenta, guardar el conteo al recibir la ingesta.
         documentos = {
             ingesta.pk: len(filas_a_documentos_internos(ingesta.payload.get("rows", [])))
-            for ingesta in IngestionSiigo.objects.filter(row_count__gt=0, solicitud__isnull=True).only("pk", "payload")
+            for ingesta in IngestionSiigo.objects.filter(row_count__gt=0).only("pk", "payload")
         }
         campo = self.fields["ingestion"]
         campo.documentos_por_ingesta = documentos
         campo.queryset = (
             IngestionSiigo.objects.filter(pk__in=[pk for pk, n in documentos.items() if n])
+            .select_related("solicitud__creada_por")
             .order_by("-generated_at")
         )
 

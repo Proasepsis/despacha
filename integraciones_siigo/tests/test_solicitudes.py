@@ -533,9 +533,54 @@ class CortesDeSolicitudTests(Base, TestCase):
         self.completar([fila_valida("1", "1")])
         self.assertEqual(nombre_archivo_corte(Corte.objects.get()), "SEP 30 solicitud.xls")
 
-    def test_la_ingesta_de_solicitud_no_se_carga_a_mano(self):
-        from cortes.servicios.cargar import ErrorCarga
+    def _ingesta_con_horas(self):
+        filas = [
+            {**fila_valida("1", "1"), "fecha_actualizacion": "20260930", "hora_actualizacion": "123000"},  # Corte 1
+            {**fila_valida("2", "1"), "fecha_actualizacion": "20260930", "hora_actualizacion": "083000"},  # Corte 2
+            fila_valida("3", "1"),  # sin hora: entra en cualquiera
+        ]
+        self.completar(filas)
+        return IngestionSiigo.objects.get()
+
+    def test_se_carga_a_mano_con_los_documentos_de_la_franja(self):
+        from cortes.models import Corte
         from cortes.servicios.cargar_ingesta import cargar_ingesta
-        self.completar([fila_valida("1", "1")])
-        with self.assertRaises(ErrorCarga):
-            cargar_ingesta(IngestionSiigo.objects.get(), usuario=self.user)
+        ingesta = self._ingesta_con_horas()
+        corte, _ = cargar_ingesta(ingesta, usuario=self.user, numero_corte=1)
+        self.assertEqual((corte.fecha, corte.numero_corte, corte.display_corte), (date(2026, 9, 30), 1, "Corte 1"))
+        self.assertEqual(sorted(corte.documentos.values_list("factura", flat=True)), ["1", "3"])
+        self.assertEqual(Corte.objects.filter(numero_corte=3).count(), 1)  # el automático sigue ahí
+
+    def test_la_misma_foto_se_carga_como_corte_1_y_como_corte_2(self):
+        from cortes.servicios.cargar_ingesta import cargar_ingesta
+        ingesta = self._ingesta_con_horas()
+        cargar_ingesta(ingesta, usuario=self.user, numero_corte=1)
+        corte2, _ = cargar_ingesta(ingesta, usuario=self.user, numero_corte=2)
+        self.assertEqual(sorted(corte2.documentos.values_list("factura", flat=True)), ["2", "3"])
+
+    def test_no_se_carga_dos_veces_el_mismo_corte(self):
+        from cortes.servicios.cargar import ErrorDuplicado, ErrorSugerirAdicional
+        from cortes.servicios.cargar_ingesta import cargar_ingesta
+        ingesta = self._ingesta_con_horas()
+        cargar_ingesta(ingesta, usuario=self.user, numero_corte=1)
+        with self.assertRaises((ErrorDuplicado, ErrorSugerirAdicional)):
+            cargar_ingesta(ingesta, usuario=self.user, numero_corte=1)
+
+    def test_el_formulario_la_ofrece_con_quien_la_pidio(self):
+        from cortes.forms import CargarCorteForm
+        self._ingesta_con_horas()
+        etiqueta = CargarCorteForm().fields["ingestion"].label_from_instance(IngestionSiigo.objects.get())
+        self.assertIn("Solicitud del 30/09", etiqueta)
+        self.assertIn("pedida por fac", etiqueta)
+
+    def test_la_vista_de_carga_acepta_la_extraccion_de_una_solicitud(self):
+        from cortes.models import Corte
+        ingesta = self._ingesta_con_horas()
+        grupo = Group.objects.get_or_create(name="facturacion")[0]
+        self.user.groups.add(grupo)
+        self.client.force_login(self.user)
+        r = self.client.post(reverse("cargar_corte"), {
+            "formato_origen": "API_SIIGO", "ingestion": ingesta.pk, "numero_corte": "1",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Corte.objects.filter(numero_corte=1, fecha=date(2026, 9, 30)).exists())

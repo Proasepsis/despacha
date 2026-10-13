@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import date as date_type
 
 from django.contrib.auth.models import User
@@ -41,21 +42,21 @@ def cargar_ingesta(
     La deduplicación se apoya en ``IngestionSiigo.rows_sha256``, por lo que la
     misma fotografía de datos no puede generar dos cortes.
     """
-    if ingestion.solicitud_id:
-        raise ErrorCarga("Las ingestas de solicitud crean sus cortes solas; no se cargan a mano.")
     filas = ingestion.payload.get("rows", [])
     documentos = filas_a_documentos_internos(filas)
     # Un envío sin movimiento (rows vacío, o nada que aplique a Despacha) queda registrado, pero no crea corte
     if not documentos:
         raise ErrorCarga("La ingesta no trae documentos para Despacha; no se crea corte.")
 
-    hash_sha256 = ingestion.rows_sha256
-    existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
-    if existente:
-        raise ErrorDuplicado(corte_existente_id=existente.pk)
-
     cut = ingestion.payload.get("cut")
-    if cut:
+    es_solicitud = bool(cut) and cut.get("nombre") == "solicitud"
+    hash_sha256 = ingestion.rows_sha256
+    if not es_solicitud:
+        existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
+        if existente:
+            raise ErrorDuplicado(corte_existente_id=existente.pk)
+
+    if cut and not es_solicitud:
         # Schema 1.1: el extractor ya filtró por su ventana (desde, hasta]; no se vuelve a filtrar
         # para no perder documentos en los bordes. Sus nombres van al revés de los de Despacha.
         numero = numero_corte or NUMERO_POR_CUT.get(cut["nombre"]) or sugerir_corte(ingestion.generated_at)
@@ -64,7 +65,9 @@ def cargar_ingesta(
     else:
         # Sin número explícito, se deduce de cuándo se extrajo (11:00 → corte 2, 16:00 → corte 1)
         numero = numero_corte or sugerir_corte(ingestion.generated_at)
-        fecha_corte = _coerce_date(fecha) or _coerce_date(ingestion.window_end)
+        # Una solicitud trae el día completo: se carga el corte elegido con los documentos de su franja
+        dia = parse_date(cut["hasta"]) if es_solicitud else ingestion.window_end
+        fecha_corte = _coerce_date(fecha) or _coerce_date(dia)
 
         # Solo los documentos de la franja del corte; los que no traen hora se conservan
         inicio, fin = ventana_corte(fecha_corte, numero)
@@ -77,6 +80,13 @@ def cargar_ingesta(
                 f"La ingesta no tiene documentos en la franja del corte {numero} "
                 f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
             )
+
+    if es_solicitud:
+        # La misma foto del día se puede cargar como Corte 1 y como Corte 2, pero no dos veces como el mismo
+        hash_sha256 = hashlib.sha256(f"{ingestion.rows_sha256}:{fecha_corte}:{numero}".encode()).hexdigest()
+        existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
+        if existente:
+            raise ErrorDuplicado(corte_existente_id=existente.pk)
 
     if not es_adicional:
         if Corte.objects.filter(
