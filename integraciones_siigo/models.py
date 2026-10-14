@@ -62,6 +62,8 @@ class SolicitudExtraccion(models.Model):
     completada_en = models.DateTimeField(null=True, blank=True)
     extraction_id = models.UUIDField(null=True, blank=True)
     row_count = models.PositiveIntegerField(null=True, blank=True)
+    # Documentos que Despacha puede cargar de esas filas (después de sus filtros); 0 = no aparece en la lista
+    documentos = models.PositiveIntegerField(null=True, blank=True)
     error = models.TextField(blank=True)
 
     class Meta:

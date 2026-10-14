@@ -17,6 +17,9 @@ from django.db.models import Count
 
 from cortes.models import Corte, Documento, Linea, PresenciaCorte
 from cortes.forms import CargarCorteForm
+from integraciones_siigo import solicitudes
+from integraciones_siigo.forms import SolicitudForm
+from integraciones_siigo.models import SolicitudExtraccion
 from cortes.servicios.corte_por_hora import sugerir_corte
 from cortes.servicios.cargar import (
     cargar_archivo,
@@ -77,7 +80,7 @@ class ListaCortesView(LoginRequiredMixin, ListView):
 
         qs = super().get_queryset().annotate(
             documentos_count=Count("documentos"),
-        ).select_related("solicitud__creada_por").prefetch_related("documentos", "versiones__usuario").order_by("-fecha", "numero_corte", "adicional_letra")
+        ).prefetch_related("documentos", "versiones__usuario").order_by("-fecha", "numero_corte", "adicional_letra")
 
         if not hay_filtro:
             hace_30 = timezone.localdate() - timedelta(days=30)
@@ -137,20 +140,32 @@ class ListaCortesView(LoginRequiredMixin, ListView):
 class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
     template_name = "cortes/cargar.html"
 
-    def get(self, request):
-        form = CargarCorteForm(initial={"numero_corte": str(sugerir_corte())})
+    def _render(self, request, form, solicitud_form=None, **extra):
+        solicitudes.vencer_tomadas()
+        recientes = list(SolicitudExtraccion.objects.select_related("creada_por")[:8])
         return render(request, self.template_name, {
             "form": form,
             "corte_sugerido": sugerir_corte(),
+            "solicitud_form": solicitud_form or SolicitudForm(),
+            "solicitudes": recientes,
+            "solicitudes_completadas": sum(s.estado == SolicitudExtraccion.COMPLETADA for s in recientes),
+            **extra,
         })
 
+    def get(self, request):
+        formato = request.GET.get("formato")
+        initial = {"numero_corte": str(sugerir_corte())}
+        if formato == FORMATO_API_SIIGO:
+            initial["formato_origen"] = formato
+        return self._render(request, CargarCorteForm(initial=initial))
+
     def post(self, request):
+        if request.POST.get("accion") == "solicitar":
+            return self._solicitar(request)
+
         form = CargarCorteForm(request.POST, request.FILES)
         if not form.is_valid():
-            return render(request, self.template_name, {
-                "form": form,
-                "corte_sugerido": sugerir_corte(),
-            })
+            return self._render(request, form)
 
         try:
             formato_origen = form.cleaned_data["formato_origen"]
@@ -163,6 +178,7 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                     usuario=request.user,
                     numero_corte=numero_corte,
                     es_adicional=es_adicional,
+                    dia_completo=form.cleaned_data.get("dia_completo", False),
                 )
             else:
                 corte, resultado = cargar_archivo(
@@ -174,37 +190,63 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                 )
         except ErrorDuplicado as e:
             form.add_error(None, str(e))
-            return render(request, self.template_name, {
-                "form": form,
-                "corte_sugerido": sugerir_corte(),
-            })
+            return self._render(request, form)
         except ErrorValidacionAdaptador as e:
             form.add_error("archivo", str(e))
-            return render(request, self.template_name, {
-                "form": form,
-                "corte_sugerido": sugerir_corte(),
-            })
+            return self._render(request, form)
         except ErrorSugerirAdicional as e:
-            return render(request, self.template_name, {
-                "form": form,
-                "corte_sugerido": sugerir_corte(),
-                "sugerir_adicional": True,
-                "msg_sugerencia": str(e),
-            })
+            return self._render(request, form, sugerir_adicional=True, msg_sugerencia=str(e))
         except ErrorCombinacionFechaCorte as e:
             form.add_error(None, str(e))
-            return render(request, self.template_name, {
-                "form": form,
-                "corte_sugerido": sugerir_corte(),
-            })
+            return self._render(request, form)
         except ErrorCarga as e:
             form.add_error(None, str(e))
-            return render(request, self.template_name, {
-                "form": form,
-                "corte_sugerido": sugerir_corte(),
-            })
+            return self._render(request, form)
 
         return redirect("lista_cortes")
+
+    def _solicitar(self, request):
+        """Pide a SIIGO un rango de fechas; el agente lo toma solo y la extracción aparece en la lista."""
+        solicitud_form = SolicitudForm(request.POST)
+        if solicitud_form.is_valid():
+            try:
+                solicitudes.crear_solicitud(
+                    solicitud_form.cleaned_data["fecha_inicio"],
+                    solicitud_form.cleaned_data["fecha_fin"],
+                    request.user,
+                )
+            except solicitudes.SolicitudEnCurso as e:
+                solicitud_form.add_error(None, f"{e}. Espera a que termine antes de pedirla de nuevo.")
+            else:
+                return redirect(f"{reverse('cargar_corte')}?formato={FORMATO_API_SIIGO}")
+        form = CargarCorteForm(initial={"numero_corte": str(sugerir_corte()), "formato_origen": FORMATO_API_SIIGO})
+        return self._render(request, form, solicitud_form)
+
+
+class SolicitudesEstadoView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
+    """Estado de las últimas solicitudes SIIGO; la pantalla de carga lo consulta para actualizarse sola."""
+
+    raise_exception = True
+
+    def get(self, request):
+        solicitudes.vencer_tomadas()
+        lista = []
+        for s in SolicitudExtraccion.objects.select_related("creada_por")[:8]:
+            rango = f"{s.fecha_inicio:%d/%m/%Y}"
+            if s.fecha_fin != s.fecha_inicio:
+                rango += f" – {s.fecha_fin:%d/%m/%Y}"
+            lista.append({
+                "id": str(s.solicitud_id),
+                "rango": rango,
+                "estado": s.estado,
+                "estado_texto": s.get_estado_display(),
+                "pedida_por": s.creada_por.username if s.creada_por else "—",
+                "hora": timezone.localtime(s.creada_en).strftime("%d/%m %H:%M"),
+                "filas": s.row_count,
+                "documentos": s.documentos,
+                "error": s.error,
+            })
+        return JsonResponse({"solicitudes": lista})
 
 
 class DetalleCorteView(LoginRequiredMixin, DetailView):

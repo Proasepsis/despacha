@@ -28,6 +28,29 @@
             {{ form.formato_origen }}
         </div>
 
+        <div class="form-group" id="solicitud-card" style="display:none;">
+            {% if solicitud_form.non_field_errors %}<div class="msg msg-error">{{ solicitud_form.non_field_errors }}</div>{% endif %}
+            <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+                <div>
+                    <label for="{{ solicitud_form.fecha_inicio.id_for_label }}">Desde</label>
+                    {{ solicitud_form.fecha_inicio }}
+                    {{ solicitud_form.fecha_inicio.errors }}
+                </div>
+                <div>
+                    <label for="{{ solicitud_form.fecha_fin.id_for_label }}">Hasta</label>
+                    {{ solicitud_form.fecha_fin }}
+                    {{ solicitud_form.fecha_fin.errors }}
+                </div>
+                <button type="submit" form="solicitud-form" class="btn btn-primary" id="btn-solicitar">Pedir a SIIGO</button>
+            </div>
+            <div id="solicitud-progreso" style="display:none;margin-top:.9rem;">
+                <div id="progreso-barra" style="height:3px;background:var(--surface-raised);border-radius:2px;overflow:hidden;">
+                    <div style="height:100%;width:30%;background:var(--accent);border-radius:2px;animation:upload-slide 1.4s ease-in-out infinite;"></div>
+                </div>
+                <p id="progreso-texto" style="margin-top:.4rem;font-family:var(--font-mono);font-size:12px;color:var(--text-muted);"></p>
+            </div>
+        </div>
+
         <div class="form-group" id="archivo-field">
             <label for="{{ form.archivo.id_for_label }}">{{ form.archivo.label }}</label>
             {{ form.archivo }}
@@ -45,6 +68,11 @@
             {% if form.ingestion.errors %}
             <ul class="errorlist">{% for e in form.ingestion.errors %}<li>{{ e }}</li>{% endfor %}</ul>
             {% endif %}
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:13px;cursor:pointer;margin:.75rem 0 0;">
+                <input type="checkbox" name="dia_completo" id="{{ form.dia_completo.id_for_label }}" style="width:auto;">
+                {{ form.dia_completo.label }}
+            </label>
+            <p style="margin-top:.3rem;font-size:12px;color:var(--text-muted);">{{ form.dia_completo.help_text }}</p>
         </div>
 
         <div class="form-group">
@@ -64,6 +92,37 @@
             <a href="{% url 'lista_cortes' %}" class="btn btn-ghost">Cancelar</a>
         </div>
     </form>
+</div>
+
+<form id="solicitud-form" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="solicitar">
+</form>
+
+<div class="card" id="historial-card" style="max-width:520px;display:none;margin-top:1rem;">
+    <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem;letter-spacing:.5px;">
+        HISTORIAL
+    </p>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;font-size:12px;border-collapse:collapse;">
+            <thead><tr style="text-align:left;color:var(--text-muted);">
+                <th>Fecha pedida</th><th>Estado</th><th>Pedida por</th><th>Hora</th><th>Filas</th><th>Docs</th><th>Detalle</th>
+            </tr></thead>
+            <tbody id="solicitudes-body">
+            {% for s in solicitudes %}
+                <tr>
+                    <td>{{ s.fecha_inicio|date:"d/m/Y" }}{% if s.fecha_fin != s.fecha_inicio %} – {{ s.fecha_fin|date:"d/m/Y" }}{% endif %}</td>
+                    <td>{{ s.get_estado_display }}</td>
+                    <td>{{ s.creada_por.username|default:"—" }}</td>
+                    <td>{{ s.creada_en|date:"d/m H:i" }}</td>
+                    <td>{{ s.row_count|default_if_none:"—" }}</td>
+                    <td>{{ s.documentos|default_if_none:"—" }}</td>
+                    <td>{% if s.estado == "completada" and s.documentos == 0 %}Sin documentos para Despacha{% else %}{{ s.error }}{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div id="upload-overlay"
@@ -96,15 +155,95 @@ function toggleFormato() {
     var formato = document.getElementById('{{ form.formato_origen.id_for_label }}').value;
     var archivoField = document.getElementById('archivo-field');
     var ingestionField = document.getElementById('ingestion-field');
+    var solicitudCard = document.getElementById('solicitud-card');
+    var historial = document.getElementById('historial-card');
     if (formato === 'API_SIIGO') {
         archivoField.style.display = 'none';
         ingestionField.style.display = '';
+        solicitudCard.style.display = '';
+        historial.style.display = '';
     } else {
         archivoField.style.display = '';
         ingestionField.style.display = 'none';
+        solicitudCard.style.display = 'none';
+        historial.style.display = 'none';
     }
 }
 document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
 toggleFormato();
+
+document.getElementById('solicitud-form').addEventListener('submit', function() {
+    document.getElementById('btn-solicitar').disabled = true;
+});
+
+// Las solicitudes se actualizan solas, sin recargar: se consulta el estado cada 3 s mientras la pestaña está visible
+var estadoUrl = "{% url 'solicitudes_estado' %}";
+var completadas = {{ solicitudes_completadas }};
+
+function pintarSolicitudes(lista) {
+    var body = document.getElementById('solicitudes-body');
+    body.textContent = '';
+    lista.forEach(function(s) {
+        var tr = document.createElement('tr');
+        [s.rango, s.estado_texto, s.pedida_por, s.hora, s.filas === null ? '—' : s.filas,
+         s.documentos === null ? '—' : s.documentos,
+         (s.estado === 'completada' && s.documentos === 0) ? 'Sin documentos para Despacha' : s.error].forEach(function(t) {
+            var td = document.createElement('td');
+            td.textContent = t;
+            tr.appendChild(td);
+        });
+        body.appendChild(tr);
+    });
+}
+
+// Cuando termina una solicitud, trae la lista de extracciones actualizada y conserva lo que estaba elegido
+function actualizarExtracciones() {
+    var select = document.getElementById('{{ form.ingestion.id_for_label }}');
+    fetch('?formato=API_SIIGO', {credentials: 'same-origin'})
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+            var nuevo = new DOMParser().parseFromString(html, 'text/html')
+                .getElementById('{{ form.ingestion.id_for_label }}');
+            if (!nuevo) { return; }
+            var elegido = select.value;
+            select.innerHTML = nuevo.innerHTML;
+            select.value = elegido;
+        });
+}
+
+// Barra mientras la última solicitud está pendiente/tomada; "OK" verde al completarse (solo si se vio en curso)
+var visto = null;
+function pintarProgreso(s) {
+    var caja = document.getElementById('solicitud-progreso');
+    var enCurso = s && (s.estado === 'pendiente' || s.estado === 'tomada');
+    if (enCurso) { visto = s.id; }
+    if (!s || visto !== s.id) { caja.style.display = 'none'; return; }
+    var ok = s.estado === 'completada' && s.documentos !== 0;
+    var texto = document.getElementById('progreso-texto');
+    caja.style.display = '';
+    document.getElementById('progreso-barra').style.display = enCurso ? '' : 'none';
+    texto.style.color = enCurso ? 'var(--text-muted)' : (ok ? '#2e9e5b' : '#c0392b');
+    texto.style.fontWeight = enCurso ? '' : '600';
+    texto.textContent = enCurso ? 'Esperando a SIIGO… (' + s.estado_texto + ')'
+        : ok ? 'OK' : (s.estado === 'completada' ? 'Sin documentos para Despacha' : (s.error || s.estado_texto));
+}
+
+function consultarSolicitudes() {
+    var formato = document.getElementById('{{ form.formato_origen.id_for_label }}').value;
+    if (document.hidden || formato !== 'API_SIIGO') { return; }
+    fetch(estadoUrl, {credentials: 'same-origin'})
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(datos) {
+            if (!datos) { return; }
+            pintarSolicitudes(datos.solicitudes);
+            pintarProgreso(datos.solicitudes[0]);
+            var ahora = datos.solicitudes.filter(function(s) { return s.estado === 'completada'; }).length;
+            if (ahora > completadas) { actualizarExtracciones(); }
+            completadas = ahora;
+        })
+        .catch(function() {});
+}
+setInterval(consultarSolicitudes, 3000);
+consultarSolicitudes();
 </script>
 {% endblock %}

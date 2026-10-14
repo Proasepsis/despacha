@@ -60,7 +60,7 @@
             <span style="display:inline-flex;align-items:center;justify-content:center;height:24px;background:var(--surface);border:1px solid var(--border-mid);border-radius:20px;padding:0 .45rem;font-family:var(--font-mono);font-size:10px;color:var(--text-soft);white-space:nowrap;">{{ doc.lineas|length }} líneas</span>
             {% for otro in doc.ya_subido_en %}
             <a href="{% url 'detalle_corte' otro.pk %}" class="ya-subido" title="Este documento ya fue subido en {{ otro.display_corte }} del {{ otro.fecha|date:'d M Y' }} ({{ otro.get_estado_display }})"
-               style="display:inline-flex;align-items:center;height:24px;border:1px dashed var(--border-mid);border-radius:20px;padding:0 .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap;text-decoration:none;">↺ ya en {{ otro.display_corte }} · {{ otro.fecha|date:"d M" }}</a>
+               style="display:inline-flex;align-items:center;height:24px;border:1px dashed var(--border-mid);border-radius:20px;padding:0 .5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap;text-decoration:none;"><span style="color:#e0a800;font-size:12px;margin-right:.3rem;">⚠</span>ya en {{ otro.display_corte }} · {{ otro.fecha|date:"d M" }}</a>
             {% endfor %}
             <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">NIT {{ doc.nit }}{% if doc.cliente_nombre %} — {{ doc.cliente_nombre }}{% endif %}{% if doc.sucursal %} · Suc {{ doc.sucursal }}{% endif %}</span>
         </div>

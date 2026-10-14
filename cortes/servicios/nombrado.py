@@ -6,7 +6,7 @@ MESES_ABREV = [
 
 def nombre_archivo_corte(corte, siguiente_version: int | None = None) -> str:
     mes = MESES_ABREV[corte.fecha.month - 1]
-    base = f"{mes} {corte.fecha.day} {corte.nombre_corto.lower()}"
+    base = f"{mes} {corte.fecha.day} corte {corte.numero_corte}"
 
     version = siguiente_version if siguiente_version is not None else corte.version_actual + 1
     if version > 1:

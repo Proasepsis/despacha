@@ -36,6 +36,7 @@ def cargar_ingesta(
     numero_corte: int | None = None,
     es_adicional: bool = False,
     fecha: date_type | None = None,
+    dia_completo: bool = False,
 ) -> tuple[Corte, ResultadoProcesamiento]:
     """Crea un Corte a partir de una ingesta SIIGO ya recibida.
 
@@ -69,21 +70,24 @@ def cargar_ingesta(
         dia = parse_date(cut["hasta"]) if es_solicitud else ingestion.window_end
         fecha_corte = _coerce_date(fecha) or _coerce_date(dia)
 
-        # Solo los documentos de la franja del corte; los que no traen hora se conservan
-        inicio, fin = ventana_corte(fecha_corte, numero)
-        documentos = [
-            d for d in documentos
-            if d.actualizado_en is None or inicio <= d.actualizado_en < fin
-        ]
-        if not documentos:
-            raise ErrorCarga(
-                f"La ingesta no tiene documentos en la franja del corte {numero} "
-                f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
-            )
+        # Solo los documentos de la franja del corte; los que no traen hora se conservan.
+        # Una solicitud puede pedirse "día completo": se cargan todos, sin filtrar por hora, como un archivo.
+        if not (es_solicitud and dia_completo):
+            inicio, fin = ventana_corte(fecha_corte, numero)
+            documentos = [
+                d for d in documentos
+                if d.actualizado_en is None or inicio <= d.actualizado_en < fin
+            ]
+            if not documentos:
+                raise ErrorCarga(
+                    f"La ingesta no tiene documentos en la franja del corte {numero} "
+                    f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
+                )
 
     if es_solicitud:
         # La misma foto del día se puede cargar como Corte 1 y como Corte 2, pero no dos veces como el mismo
-        hash_sha256 = hashlib.sha256(f"{ingestion.rows_sha256}:{fecha_corte}:{numero}".encode()).hexdigest()
+        sufijo = ":completo" if dia_completo else ""
+        hash_sha256 = hashlib.sha256(f"{ingestion.rows_sha256}:{fecha_corte}:{numero}{sufijo}".encode()).hexdigest()
         existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
         if existente:
             raise ErrorDuplicado(corte_existente_id=existente.pk)
