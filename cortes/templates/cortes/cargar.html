@@ -28,6 +28,29 @@
             {{ form.formato_origen }}
         </div>
 
+        <div class="form-group" id="solicitud-card" style="display:none;">
+            {% if solicitud_form.non_field_errors %}<div class="msg msg-error">{{ solicitud_form.non_field_errors }}</div>{% endif %}
+            <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+                <div>
+                    <label for="{{ solicitud_form.fecha_inicio.id_for_label }}">Desde</label>
+                    {{ solicitud_form.fecha_inicio }}
+                    {{ solicitud_form.fecha_inicio.errors }}
+                </div>
+                <div>
+                    <label for="{{ solicitud_form.fecha_fin.id_for_label }}">Hasta</label>
+                    {{ solicitud_form.fecha_fin }}
+                    {{ solicitud_form.fecha_fin.errors }}
+                </div>
+                <button type="submit" form="solicitud-form" class="btn btn-primary" id="btn-solicitar">Pedir a SIIGO</button>
+            </div>
+            <div id="solicitud-progreso" style="display:none;margin-top:.9rem;">
+                <div id="progreso-barra" style="height:3px;background:var(--surface-raised);border-radius:2px;overflow:hidden;">
+                    <div style="height:100%;width:30%;background:var(--accent);border-radius:2px;animation:upload-slide 1.4s ease-in-out infinite;"></div>
+                </div>
+                <p id="progreso-texto" style="margin-top:.4rem;font-family:var(--font-mono);font-size:12px;color:var(--text-muted);"></p>
+            </div>
+        </div>
+
         <div class="form-group" id="archivo-field">
             <label for="{{ form.archivo.id_for_label }}">{{ form.archivo.label }}</label>
             {{ form.archivo }}
@@ -71,33 +94,16 @@
     </form>
 </div>
 
-<div class="card" id="solicitud-card" style="max-width:520px;display:none;margin-top:1rem;">
-    <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem;letter-spacing:.5px;">
-        PEDIR A SIIGO
-    </p>
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">
-        Elige el día o rango. SIIGO lo extrae solo y, al terminar, aparece en la lista “Extracción SIIGO” de arriba.
-    </p>
-    <form id="solicitud-form" method="post">
-        {% csrf_token %}
-        <input type="hidden" name="accion" value="solicitar">
-        {% if solicitud_form.non_field_errors %}<div class="msg msg-error">{{ solicitud_form.non_field_errors }}</div>{% endif %}
-        <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
-            <div class="form-group" style="margin:0;">
-                <label for="{{ solicitud_form.fecha_inicio.id_for_label }}">Desde</label>
-                {{ solicitud_form.fecha_inicio }}
-                {{ solicitud_form.fecha_inicio.errors }}
-            </div>
-            <div class="form-group" style="margin:0;">
-                <label for="{{ solicitud_form.fecha_fin.id_for_label }}">Hasta</label>
-                {{ solicitud_form.fecha_fin }}
-                {{ solicitud_form.fecha_fin.errors }}
-            </div>
-            <button type="submit" class="btn btn-primary" id="btn-solicitar">Pedir a SIIGO</button>
-        </div>
-    </form>
+<form id="solicitud-form" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="solicitar">
+</form>
 
-    <div style="overflow-x:auto;margin-top:1.25rem;">
+<div class="card" id="historial-card" style="max-width:520px;display:none;margin-top:1rem;">
+    <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem;letter-spacing:.5px;">
+        HISTORIAL
+    </p>
+    <div style="overflow-x:auto;">
         <table style="width:100%;font-size:12px;border-collapse:collapse;">
             <thead><tr style="text-align:left;color:var(--text-muted);">
                 <th>Fecha pedida</th><th>Estado</th><th>Pedida por</th><th>Hora</th><th>Filas</th><th>Docs</th><th>Detalle</th>
@@ -150,14 +156,17 @@ function toggleFormato() {
     var archivoField = document.getElementById('archivo-field');
     var ingestionField = document.getElementById('ingestion-field');
     var solicitudCard = document.getElementById('solicitud-card');
+    var historial = document.getElementById('historial-card');
     if (formato === 'API_SIIGO') {
         archivoField.style.display = 'none';
         ingestionField.style.display = '';
         solicitudCard.style.display = '';
+        historial.style.display = '';
     } else {
         archivoField.style.display = '';
         ingestionField.style.display = 'none';
         solicitudCard.style.display = 'none';
+        historial.style.display = 'none';
     }
 }
 document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
@@ -202,6 +211,23 @@ function actualizarExtracciones() {
         });
 }
 
+// Barra mientras la última solicitud está pendiente/tomada; "OK" verde al completarse (solo si se vio en curso)
+var visto = null;
+function pintarProgreso(s) {
+    var caja = document.getElementById('solicitud-progreso');
+    var enCurso = s && (s.estado === 'pendiente' || s.estado === 'tomada');
+    if (enCurso) { visto = s.id; }
+    if (!s || visto !== s.id) { caja.style.display = 'none'; return; }
+    var ok = s.estado === 'completada' && s.documentos !== 0;
+    var texto = document.getElementById('progreso-texto');
+    caja.style.display = '';
+    document.getElementById('progreso-barra').style.display = enCurso ? '' : 'none';
+    texto.style.color = enCurso ? 'var(--text-muted)' : (ok ? '#2e9e5b' : '#c0392b');
+    texto.style.fontWeight = enCurso ? '' : '600';
+    texto.textContent = enCurso ? 'Esperando a SIIGO… (' + s.estado_texto + ')'
+        : ok ? 'OK' : (s.estado === 'completada' ? 'Sin documentos para Despacha' : (s.error || s.estado_texto));
+}
+
 function consultarSolicitudes() {
     var formato = document.getElementById('{{ form.formato_origen.id_for_label }}').value;
     if (document.hidden || formato !== 'API_SIIGO') { return; }
@@ -210,6 +236,7 @@ function consultarSolicitudes() {
         .then(function(datos) {
             if (!datos) { return; }
             pintarSolicitudes(datos.solicitudes);
+            pintarProgreso(datos.solicitudes[0]);
             var ahora = datos.solicitudes.filter(function(s) { return s.estado === 'completada'; }).length;
             if (ahora > completadas) { actualizarExtracciones(); }
             completadas = ahora;
@@ -217,5 +244,6 @@ function consultarSolicitudes() {
         .catch(function() {});
 }
 setInterval(consultarSolicitudes, 3000);
+consultarSolicitudes();
 </script>
 {% endblock %}

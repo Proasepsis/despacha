@@ -4,8 +4,8 @@ from . import solicitudes
 
 
 class SolicitudForm(forms.Form):
-    fecha_inicio = forms.DateField(label="Desde", widget=forms.DateInput(attrs={"type": "date"}))
-    fecha_fin = forms.DateField(label="Hasta", widget=forms.DateInput(attrs={"type": "date"}))
+    fecha_inicio = forms.DateField(label="Desde", widget=forms.DateInput(attrs={"type": "date", "form": "solicitud-form"}))
+    fecha_fin = forms.DateField(label="Hasta", widget=forms.DateInput(attrs={"type": "date", "form": "solicitud-form"}))
 
     def clean(self):
         data = super().clean()
