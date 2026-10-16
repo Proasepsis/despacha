@@ -16,5 +16,6 @@ class DocumentoInterno:
     nit: str = ""
     codigo_ciudad: str = ""
     tipo_comprobante: str = ""
+    codigo_comprobante: str = ""
     sucursal: str = ""
     lineas: list[LineaInterna] = field(default_factory=list)

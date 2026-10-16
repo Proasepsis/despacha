@@ -45,6 +45,23 @@
             {% if form.ingestion.errors %}
             <ul class="errorlist">{% for e in form.ingestion.errors %}<li>{{ e }}</li>{% endfor %}</ul>
             {% endif %}
+            <p style="margin-top:.3rem;font-size:12px;color:var(--text-muted);">
+                Se cargan solo los documentos que aún no están en ningún corte.
+            </p>
+            <div style="display:flex;gap:.75rem;margin-top:.75rem;">
+                <div style="flex:1;">
+                    <label for="{{ form.desde.id_for_label }}">{{ form.desde.label }}</label>
+                    {{ form.desde }}
+                </div>
+                <div style="flex:1;">
+                    <label for="{{ form.hasta.id_for_label }}">{{ form.hasta.label }}</label>
+                    {{ form.hasta }}
+                </div>
+            </div>
+            {% if form.hasta.errors %}
+            <ul class="errorlist">{% for e in form.hasta.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+            <div id="previa-ingesta" style="margin-top:.75rem;font-size:12px;font-family:var(--font-mono);color:var(--text-muted);"></div>
         </div>
 
         <div class="form-group">
@@ -106,5 +123,31 @@ function toggleFormato() {
 }
 document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
 toggleFormato();
+
+var previaUrl = "{% url 'previa_ingesta' 0 %}";
+function actualizarPrevia() {
+    var box = document.getElementById('previa-ingesta');
+    var id = document.getElementById('{{ form.ingestion.id_for_label }}').value;
+    if (!id) { box.textContent = ''; return; }
+    var q = new URLSearchParams({
+        desde: document.getElementById('{{ form.desde.id_for_label }}').value,
+        hasta: document.getElementById('{{ form.hasta.id_for_label }}').value,
+    });
+    fetch(previaUrl.replace('/0/', '/' + id + '/') + '?' + q)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(d) {
+            var filas = d.series.map(function(s) {
+                return s.serie + ': ' + s.documentos + ' docs (' + s.desde + ' – ' + s.hasta + ')';
+            });
+            box.textContent = d.total === 0
+                ? 'No hay documentos nuevos. Ya cargados: ' + d.ya_cargados + '.'
+                : 'Entrarían ' + d.total + ' documentos · ' + filas.join(' · ') +
+                  ' · ya cargados: ' + d.ya_cargados + (d.descartados ? ' · eliminados: ' + d.descartados : '');
+        })
+        .catch(function() { box.textContent = 'No se pudo calcular la vista previa.'; });
+}
+['{{ form.ingestion.id_for_label }}', '{{ form.desde.id_for_label }}', '{{ form.hasta.id_for_label }}']
+    .forEach(function(id) { document.getElementById(id).addEventListener('change', actualizarPrevia); });
+actualizarPrevia();
 </script>
 {% endblock %}

@@ -87,6 +87,7 @@ class Documento(models.Model):
     factura = models.CharField(max_length=30)
     nit = models.CharField(max_length=20, blank=True)
     tipo_comprobante = models.CharField(max_length=1, blank=True, default="")
+    codigo_comprobante = models.CharField(max_length=3, blank=True, default="")
     sucursal = models.CharField(max_length=20, blank=True)
     cliente = models.ForeignKey(
         "clientes.Cliente",
@@ -117,6 +118,27 @@ class Documento(models.Model):
 
     def __str__(self):
         return self.factura
+
+
+class DocumentoDescartado(models.Model):
+    """Documento eliminado a propósito de un corte: no debe volver a cargarse."""
+
+    tipo_comprobante = models.CharField(max_length=1)
+    codigo_comprobante = models.CharField(max_length=3, blank=True, default="")
+    factura = models.CharField(max_length=30)
+    corte = models.ForeignKey(Corte, null=True, blank=True, on_delete=models.SET_NULL)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tipo_comprobante", "codigo_comprobante", "factura"],
+                name="uq_documento_descartado",
+            )
+        ]
 
 
 class Linea(models.Model):

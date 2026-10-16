@@ -27,6 +27,18 @@ class CargarCorteForm(forms.Form):
         label="Ingesta SIIGO",
         empty_label="Seleccione una ingesta…",
     )
+    desde = forms.DateTimeField(
+        required=False,
+        label="Desde (opcional)",
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+    )
+    hasta = forms.DateTimeField(
+        required=False,
+        label="Hasta (opcional)",
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+    )
     numero_corte = forms.ChoiceField(
         choices=[(1, "Corte 1"), (2, "Corte 2")],
         help_text="Sugerido según la hora; puede ajustarse.",
@@ -50,6 +62,9 @@ class CargarCorteForm(forms.Form):
         if formato == "API_SIIGO":
             if not cleaned.get("ingestion"):
                 self.add_error("ingestion", "Seleccione una ingesta SIIGO.")
+            desde, hasta = cleaned.get("desde"), cleaned.get("hasta")
+            if desde and hasta and hasta <= desde:
+                self.add_error("hasta", "«Hasta» debe ser posterior a «Desde».")
         elif formato == "PLANTILLA":
             if not cleaned.get("archivo"):
                 self.add_error("archivo", "Seleccione un archivo .xlsx.")

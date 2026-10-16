@@ -11,11 +11,11 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, DetailView
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.db.models import Count
 
-from cortes.models import Corte, Documento, Linea, PresenciaCorte
+from cortes.models import Corte, Documento, DocumentoDescartado, Linea, PresenciaCorte
 from cortes.forms import CargarCorteForm
 from cortes.servicios.corte_por_hora import sugerir_corte
 from cortes.servicios.cargar import (
@@ -27,6 +27,8 @@ from cortes.servicios.cargar import (
     ErrorSugerirAdicional,
 )
 from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta
+from cortes.servicios.seleccion_ingesta import BOGOTA, seleccionar_documentos
+from integraciones_siigo.models import IngestionSiigo
 from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
@@ -163,6 +165,8 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                     usuario=request.user,
                     numero_corte=numero_corte,
                     es_adicional=es_adicional,
+                    desde=form.cleaned_data.get("desde"),
+                    hasta=form.cleaned_data.get("hasta"),
                 )
             else:
                 corte, resultado = cargar_archivo(
@@ -205,6 +209,33 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
             })
 
         return redirect("lista_cortes")
+
+
+class PrevisualizarIngestaView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
+    """Qué documentos entrarían al corte si se carga la ingesta (sin crear nada)."""
+
+    raise_exception = True
+
+    def get(self, request, pk):
+        ingestion = get_object_or_404(IngestionSiigo, pk=pk)
+        try:
+            desde, hasta = (_parse_hora(request.GET.get(k)) for k in ("desde", "hasta"))
+        except ValueError:
+            return HttpResponseBadRequest("Fecha u hora inválida")
+        seleccion = seleccionar_documentos(ingestion, desde, hasta)
+        return JsonResponse({
+            "series": seleccion.resumen_por_serie(),
+            "total": len(seleccion.documentos),
+            "ya_cargados": seleccion.ya_cargados,
+            "descartados": seleccion.descartados,
+        })
+
+
+def _parse_hora(valor):
+    if not valor:
+        return None
+    dt = datetime.strptime(valor, "%Y-%m-%dT%H:%M")
+    return dt.replace(tzinfo=BOGOTA)
 
 
 class DetalleCorteView(LoginRequiredMixin, DetailView):
@@ -451,6 +482,14 @@ class EliminarDocumentosView(LoginRequiredMixin, EsFacturacionOAdminMixin, View)
                     valor_anterior=f"{doc.factura} ({doc.tipo_comprobante}) NIT {doc.nit}, {doc.n_lineas} líneas",
                     metadata={"corte_id": corte.pk},
                 )
+            for doc in docs:
+                if doc.creado_por_split_de_id is None:
+                    DocumentoDescartado.objects.get_or_create(
+                        tipo_comprobante=doc.tipo_comprobante,
+                        codigo_comprobante=doc.codigo_comprobante,
+                        factura=doc.factura,
+                        defaults={"corte": corte, "usuario": request.user},
+                    )
             # Las líneas se borran en cascada
             corte.documentos.filter(pk__in=[d.pk for d in docs]).delete()
 

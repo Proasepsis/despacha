@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date as date_type
+from datetime import date as date_type, datetime
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -18,7 +18,7 @@ from cortes.servicios.procesar import (
     procesar_documentos_internos,
     ResultadoProcesamiento,
 )
-from core.adaptadores.api_siigo.convertir import filas_a_documentos_internos
+from cortes.servicios.seleccion_ingesta import seleccionar_documentos
 from core.servicios.notificaciones import notificar_sin_maestra_detectado
 
 FORMATO_API_SIIGO = "API_SIIGO"
@@ -31,19 +31,22 @@ def cargar_ingesta(
     numero_corte: int | None = None,
     es_adicional: bool = False,
     fecha: date_type | None = None,
+    desde: datetime | None = None,
+    hasta: datetime | None = None,
 ) -> tuple[Corte, ResultadoProcesamiento]:
-    """Crea un Corte a partir de una ingesta SIIGO ya recibida.
+    """Crea un Corte con los documentos de la ingesta que aún no están en ningún corte.
 
-    La deduplicación se apoya en ``IngestionSiigo.rows_sha256``, por lo que la
-    misma fotografía de datos no puede generar dos cortes.
+    ``desde``/``hasta`` (opcionales) limitan por fecha+hora de actualización. Si no hay
+    documentos nuevos se rechaza: ``ErrorDuplicado`` cuando la ingesta ya generó un corte.
     """
-    filas = ingestion.payload.get("rows", [])
-    documentos = filas_a_documentos_internos(filas)
+    documentos = seleccionar_documentos(ingestion, desde, hasta).documentos
 
     hash_sha256 = ingestion.rows_sha256
-    existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
-    if existente:
-        raise ErrorDuplicado(corte_existente_id=existente.pk)
+    if not documentos:
+        existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
+        if existente:
+            raise ErrorDuplicado(corte_existente_id=existente.pk)
+        raise ErrorCarga("No hay documentos nuevos en esta ingesta: todos ya están en algún corte.")
 
     numero = numero_corte or sugerir_corte()
     fecha_corte = _coerce_date(fecha) or _coerce_date(ingestion.window_end)
