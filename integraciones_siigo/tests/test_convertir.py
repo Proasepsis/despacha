@@ -88,10 +88,14 @@ class ConvertirTests(SimpleTestCase):
             filas_a_documentos_internos([_fila(codigo_bodega="0215")]), []
         )
 
-    def test_excluye_bodega_400_con_ubicacion_distinta_de_5(self):
+    def test_excluye_bodega_400_con_ubicacion_distinta_de_5_y_20(self):
         self.assertEqual(
             filas_a_documentos_internos([_fila(codigo_ubicacion="010")]), []
         )
+
+    def test_acepta_bodega_400_ubicacion_20(self):
+        documentos = filas_a_documentos_internos([_fila(codigo_ubicacion="020")])
+        self.assertEqual(len(documentos), 1)
 
     def test_acepta_bodega_y_ubicacion_como_enteros(self):
         fila = _fila(codigo_bodega=400, codigo_ubicacion=5)
