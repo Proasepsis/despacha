@@ -272,6 +272,7 @@ class AdaptadorPlantilla(AdaptadorFormato):
                     nit=nit,
                     codigo_ciudad=codigo_ciudad,
                     tipo_comprobante=tipo_comprobante,
+                    codigo_comprobante=str(codigo_int),
                     sucursal=sucursal,
                 )
             documentos[clave].lineas.append(linea)

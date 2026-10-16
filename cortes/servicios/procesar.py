@@ -65,6 +65,7 @@ def procesar_documentos_internos(
             factura=doc_interno.factura,
             nit=doc_interno.nit[:20],
             tipo_comprobante=doc_interno.tipo_comprobante,
+            codigo_comprobante=doc_interno.codigo_comprobante,
             sucursal=doc_interno.sucursal[:20],
             ciudad=ciudad,
         )

@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from core.adaptadores.api_siigo.convertir import filas_a_documentos_internos
-from cortes.servicios.cargar_ingesta import NUMERO_POR_CUT
+from cortes.servicios.cargar_ingesta import NUMERO_POR_CUT, SERIES
 from integraciones_siigo.models import IngestionSiigo
 
 
@@ -61,6 +61,11 @@ class CargarCorteForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for tipo, codigo in SERIES:
+            self.fields[f"desde_{tipo}{codigo}"] = forms.IntegerField(
+                required=False, min_value=1, label=f"{tipo}-{codigo}",
+                widget=forms.NumberInput(attrs={"placeholder": "Desde"}),
+            )
         # Solo ingestas con documentos que Despacha puede procesar, con el mismo filtro de cargar_ingesta.
         # ponytail: convierte todas las ingestas en cada carga del formulario; si la lista crece
         # y se vuelve lenta, guardar el conteo al recibir la ingesta.
@@ -75,6 +80,14 @@ class CargarCorteForm(forms.Form):
             .select_related("solicitud__creada_por")
             .order_by("-generated_at")
         )
+
+    def desde_consecutivo(self) -> dict[tuple[str, int], int]:
+        """Consecutivo mínimo pedido por serie; vacío si no se pidió ninguno."""
+        return {
+            (tipo, codigo): self.cleaned_data[f"desde_{tipo}{codigo}"]
+            for tipo, codigo in SERIES
+            if self.cleaned_data.get(f"desde_{tipo}{codigo}")
+        }
 
     def clean_archivo(self):
         archivo = self.cleaned_data.get("archivo")

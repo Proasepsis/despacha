@@ -143,6 +143,7 @@ def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
                 nit=_txt(fila.get("nit")).strip(),
                 codigo_ciudad=_txt(fila.get("codigo_ciudad")).strip(),
                 tipo_comprobante=tipo,
+                codigo_comprobante=str(codigo_int),
                 sucursal=_txt(fila.get("sucursal")).strip(),
             )
         doc = documentos[clave]

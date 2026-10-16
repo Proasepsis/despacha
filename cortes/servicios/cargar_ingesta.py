@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.dateparse import parse_date, parse_datetime
 
-from cortes.models import Corte
+from cortes.models import Corte, Documento
 from cortes.servicios.cargar import (
     ErrorCarga,
     ErrorDuplicado,
@@ -28,6 +28,52 @@ FORMATO_API_SIIGO = "API_SIIGO"
 # en Despacha la mañana es el Corte 2 y la tarde el Corte 1.
 NUMERO_POR_CUT = {"corte_1": 2, "corte_2": 1}
 
+# Series de consecutivos que se pueden pedir: cada (tipo, código de comprobante) numera por separado
+SERIES = [("F", 1), ("H", 5), ("S", 1), ("T", 10), ("T", 25)]
+
+
+def _filtrar_por_consecutivo(documentos, desde):
+    """Por serie, solo los documentos con número >= desde; las series sin valor pasan completas."""
+    def pasa(d):
+        minimo = desde.get((d.tipo_comprobante, int(d.codigo_comprobante or 0)))
+        return minimo is None or not d.factura.isdigit() or int(d.factura) >= minimo
+
+    return [d for d in documentos if pasa(d)]
+
+
+def _ultimo_cargado(tipo: str, codigo: int) -> str | None:
+    """Mayor consecutivo ya cargado de la serie. Los documentos viejos no guardan el código:
+    solo se les supone el de su tipo cuando no es traslado (F, H, S tienen un único código)."""
+    codigos = [str(codigo)] + ([""] if tipo != "T" else [])
+    numeros = [
+        int(f)
+        for f in Documento.objects.filter(tipo_comprobante=tipo, codigo_comprobante__in=codigos)
+        .exclude(corte__estado="con_error")
+        .values_list("factura", flat=True)
+        if f.isdigit()
+    ]
+    return str(max(numeros)) if numeros else None
+
+
+def previa_por_serie(ingestion) -> list[dict]:
+    """Por serie de la extracción: cuántos documentos hay, su rango y el último consecutivo ya cargado."""
+    por_serie: dict[tuple[str, int], list[int]] = {}
+    for d in filas_a_documentos_internos(ingestion.payload.get("rows", [])):
+        if d.factura.isdigit():
+            por_serie.setdefault((d.tipo_comprobante, int(d.codigo_comprobante)), []).append(int(d.factura))
+    return [
+        {
+            "serie": f"{tipo}-{codigo}",
+            "tipo": tipo,
+            "codigo": codigo,
+            "documentos": len(numeros),
+            "desde": str(min(numeros)),
+            "hasta": str(max(numeros)),
+            "ultimo_cargado": _ultimo_cargado(tipo, codigo),
+        }
+        for (tipo, codigo), numeros in sorted(por_serie.items())
+    ]
+
 
 @transaction.atomic
 def cargar_ingesta(
@@ -37,6 +83,7 @@ def cargar_ingesta(
     es_adicional: bool = False,
     fecha: date_type | None = None,
     dia_completo: bool = False,
+    desde_consecutivo: dict[tuple[str, int], int] | None = None,
 ) -> tuple[Corte, ResultadoProcesamiento]:
     """Crea un Corte a partir de una ingesta SIIGO ya recibida.
 
@@ -52,7 +99,13 @@ def cargar_ingesta(
     cut = ingestion.payload.get("cut")
     es_solicitud = bool(cut) and cut.get("nombre") == "solicitud"
     hash_sha256 = ingestion.rows_sha256
-    if not es_solicitud:
+    # Pedir por consecutivo reemplaza a la franja horaria: quien lo usa elige el corte por número
+    por_consecutivo = bool(desde_consecutivo)
+    if por_consecutivo:
+        documentos = _filtrar_por_consecutivo(documentos, desde_consecutivo)
+        if not documentos:
+            raise ErrorCarga("La extracción no tiene documentos desde esos consecutivos.")
+    if not es_solicitud and not por_consecutivo:
         existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
         if existente:
             raise ErrorDuplicado(corte_existente_id=existente.pk)
@@ -72,7 +125,7 @@ def cargar_ingesta(
 
         # Solo los documentos de la franja del corte; los que no traen hora se conservan.
         # Una solicitud puede pedirse "día completo": se cargan todos, sin filtrar por hora, como un archivo.
-        if not (es_solicitud and dia_completo):
+        if not (es_solicitud and dia_completo) and not por_consecutivo:
             inicio, fin = ventana_corte(fecha_corte, numero)
             documentos = [
                 d for d in documentos
@@ -84,9 +137,11 @@ def cargar_ingesta(
                     f"({inicio:%d/%m %H:%M} a {fin:%d/%m %H:%M})."
                 )
 
-    if es_solicitud:
+    if es_solicitud or por_consecutivo:
         # La misma foto del día se puede cargar como Corte 1 y como Corte 2, pero no dos veces como el mismo
-        sufijo = ":completo" if dia_completo else ""
+        sufijo = ":completo" if es_solicitud and dia_completo else ""
+        if por_consecutivo:
+            sufijo += ":cons=" + ",".join(f"{t}{c}-{n}" for (t, c), n in sorted(desde_consecutivo.items()))
         hash_sha256 = hashlib.sha256(f"{ingestion.rows_sha256}:{fecha_corte}:{numero}{sufijo}".encode()).hexdigest()
         existente = Corte.objects.filter(hash_sha256=hash_sha256).first()
         if existente:

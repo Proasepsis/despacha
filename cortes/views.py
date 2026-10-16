@@ -19,7 +19,7 @@ from cortes.models import Corte, Documento, Linea, PresenciaCorte
 from cortes.forms import CargarCorteForm
 from integraciones_siigo import solicitudes
 from integraciones_siigo.forms import SolicitudForm
-from integraciones_siigo.models import SolicitudExtraccion
+from integraciones_siigo.models import IngestionSiigo, SolicitudExtraccion
 from cortes.servicios.corte_por_hora import sugerir_corte
 from cortes.servicios.cargar import (
     cargar_archivo,
@@ -29,7 +29,7 @@ from cortes.servicios.cargar import (
     ErrorCombinacionFechaCorte,
     ErrorSugerirAdicional,
 )
-from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta
+from cortes.servicios.cargar_ingesta import FORMATO_API_SIIGO, cargar_ingesta, previa_por_serie
 from cortes.servicios.bloqueo import liberar_bloqueo
 from cortes.servicios.split import partir_documento, deshacer_split
 from cortes.servicios.auditoria import registrar_auditoria
@@ -179,6 +179,7 @@ class CargarCorteView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                     numero_corte=numero_corte,
                     es_adicional=es_adicional,
                     dia_completo=form.cleaned_data.get("dia_completo", False),
+                    desde_consecutivo=form.desde_consecutivo(),
                 )
             else:
                 corte, resultado = cargar_archivo(
@@ -247,6 +248,16 @@ class SolicitudesEstadoView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
                 "error": s.error,
             })
         return JsonResponse({"solicitudes": lista})
+
+
+class PrevisualizarIngestaView(LoginRequiredMixin, EsFacturacionOAdminMixin, View):
+    """Series y rangos de una extracción, con el último consecutivo ya cargado (solo lectura)."""
+
+    raise_exception = True
+
+    def get(self, request, pk):
+        ingestion = get_object_or_404(IngestionSiigo, pk=pk)
+        return JsonResponse({"series": previa_por_serie(ingestion)})
 
 
 class DetalleCorteView(LoginRequiredMixin, DetailView):
