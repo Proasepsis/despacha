@@ -16,7 +16,7 @@ from core.adaptadores.modelo_interno import DocumentoInterno, LineaInterna
 CODIGOS_PERMITIDOS = {"F": {1}, "H": {5}, "S": {1}, "T": {10, 25}}
 
 BODEGA_VIGIA = 400
-UBICACION_VIGIA = 5
+UBICACIONES_VIGIA = {5, 20}
 
 
 def _txt(valor) -> str:
@@ -59,13 +59,13 @@ def _fecha_hora_actualizacion(fila) -> datetime | None:
 
 
 def _es_movimiento_vigia(fila) -> bool:
-    """Conserva solo bodega 400 y ubicación 5, comparadas como enteros."""
+    """Conserva solo bodega 400 y ubicación 5 o 20, comparadas como enteros."""
     try:
         bodega = int(str(fila.get("codigo_bodega") or "").strip())
         ubicacion = int(str(fila.get("codigo_ubicacion") or "").strip())
     except (ValueError, TypeError):
         return False
-    return bodega == BODEGA_VIGIA and ubicacion == UBICACION_VIGIA
+    return bodega == BODEGA_VIGIA and ubicacion in UBICACIONES_VIGIA
 
 
 def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
@@ -76,7 +76,7 @@ def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
     2. Solo comprobantes permitidos por tipo (F/H/S=1, T={10,25}).
     3. La cuenta contable debe empezar por "14".
     4. Los traslados (T) aceptan D y C; los demás solo C.
-    5. Solo bodega 400 Y ubicación 5 (comparadas como enteros).
+    5. Solo bodega 400 Y ubicación 5 o 20 (comparadas como enteros).
     6. Producto reconstruido como línea(3)+grupo(4)+código(6).
     """
     # Un mismo número puede repetirse entre tipos o códigos (p.ej. F 603 y T 603): son documentos distintos
