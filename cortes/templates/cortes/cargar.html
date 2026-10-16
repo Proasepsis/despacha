@@ -73,6 +73,26 @@
                 {{ form.dia_completo.label }}
             </label>
             <p style="margin-top:.3rem;font-size:12px;color:var(--text-muted);">{{ form.dia_completo.help_text }}</p>
+
+            <details style="margin-top:.9rem;" {% if form.errors.desde_F1 or form.errors.desde_T25 %}open{% endif %}>
+                <summary style="cursor:pointer;font-size:13px;">Pedir por consecutivo (opcional)</summary>
+                <p style="margin:.4rem 0;font-size:12px;color:var(--text-muted);">
+                    Carga solo los documentos con número igual o mayor al indicado en cada serie; las series que dejes
+                    vacías entran completas. Reemplaza a la franja horaria.
+                </p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:.5rem;">
+                    {% for campo in form %}{% if campo.name|slice:":6" == "desde_" %}
+                    <div>
+                        <label for="{{ campo.id_for_label }}" style="font-size:12px;">{{ campo.label }}</label>
+                        {{ campo }}
+                    </div>
+                    {% endif %}{% endfor %}
+                </div>
+                <div id="previa-ingesta" style="margin-top:.6rem;font-size:12px;font-family:var(--font-mono);color:var(--text-muted);"></div>
+                <button type="button" id="usar-siguiente" class="btn btn-ghost" style="display:none;margin-top:.5rem;">
+                    Usar el siguiente al último cargado
+                </button>
+            </details>
         </div>
 
         <div class="form-group">
@@ -171,6 +191,35 @@ function toggleFormato() {
 }
 document.getElementById('{{ form.formato_origen.id_for_label }}').addEventListener('change', toggleFormato);
 toggleFormato();
+
+var previaUrl = "{% url 'previa_ingesta' 0 %}";
+var seriesPrevia = [];
+function actualizarPrevia() {
+    var box = document.getElementById('previa-ingesta');
+    var boton = document.getElementById('usar-siguiente');
+    var id = document.getElementById('{{ form.ingestion.id_for_label }}').value;
+    seriesPrevia = []; boton.style.display = 'none'; box.textContent = '';
+    if (!id) return;
+    fetch(previaUrl.replace('/0/', '/' + id + '/'))
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function(d) {
+            seriesPrevia = d.series;
+            box.innerHTML = d.series.map(function(s) {
+                return s.serie + ': ' + s.documentos + ' docs (' + s.desde + ' – ' + s.hasta + ') · último cargado: ' +
+                    (s.ultimo_cargado || 'sin dato');
+            }).join('<br>');
+            boton.style.display = d.series.some(function(s) { return s.ultimo_cargado; }) ? '' : 'none';
+        })
+        .catch(function() { box.textContent = 'No se pudo consultar la extracción.'; });
+}
+document.getElementById('usar-siguiente').addEventListener('click', function() {
+    seriesPrevia.forEach(function(s) {
+        var campo = document.getElementById('id_desde_' + s.tipo + s.codigo);
+        if (campo && s.ultimo_cargado) campo.value = parseInt(s.ultimo_cargado, 10) + 1;
+    });
+});
+document.getElementById('{{ form.ingestion.id_for_label }}').addEventListener('change', actualizarPrevia);
+actualizarPrevia();
 
 document.getElementById('solicitud-form').addEventListener('submit', function() {
     document.getElementById('btn-solicitar').disabled = true;

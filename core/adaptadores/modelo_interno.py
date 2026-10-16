@@ -17,6 +17,7 @@ class DocumentoInterno:
     nit: str = ""
     codigo_ciudad: str = ""
     tipo_comprobante: str = ""
+    codigo_comprobante: str = ""
     sucursal: str = ""
     lineas: list[LineaInterna] = field(default_factory=list)
     # Hora local de Bogotá (sin tz) en que SIIGO registró el documento; None si la fuente no la trae

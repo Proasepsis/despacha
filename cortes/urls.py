@@ -6,6 +6,7 @@ urlpatterns = [
     path("", views.ListaCortesView.as_view(), name="lista_cortes"),
     path("cargar/", views.CargarCorteView.as_view(), name="cargar_corte"),
     path("cargar/solicitudes/", views.SolicitudesEstadoView.as_view(), name="solicitudes_estado"),
+    path("ingesta/<int:pk>/previa/", views.PrevisualizarIngestaView.as_view(), name="previa_ingesta"),
     path("<int:pk>/", views.DetalleCorteView.as_view(), name="detalle_corte"),
     path("<int:pk>/editar/", views.EditarCorteView.as_view(), name="editar_corte"),
     path("<int:pk>/split/", views.SplitDocumentoView.as_view(), name="split_documento"),
