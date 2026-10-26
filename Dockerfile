@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/python:3.13-slim-bookworm AS builder
+FROM public.ecr.aws/docker/library/python:3.15-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -15,7 +15,7 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 
-FROM public.ecr.aws/docker/library/python:3.13-slim-bookworm
+FROM public.ecr.aws/docker/library/python:3.15-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
