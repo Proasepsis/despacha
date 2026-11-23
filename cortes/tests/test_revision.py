@@ -336,6 +336,15 @@ class VistaRevisionTest(TestCase):
             f"autosave('linea', {linea_con_punto.pk}, 'punto_incluido'",
         )
 
+    def test_detalle_muestra_bodega_de_la_linea(self):
+        self.linea.bodega = "400-20"
+        self.linea.save()
+        self.client.login(username="alm1", password="test")
+
+        response = self.client.get(reverse("detalle_corte", args=[self.corte.pk]))
+
+        self.assertContains(response, "400-20")
+
     def test_detalle_no_muestra_toggle_cuando_lote_sin_punto(self):
         # self.linea tiene lote="15F22", sin punto final
         self.client.login(username="alm1", password="test")
