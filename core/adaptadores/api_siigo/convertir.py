@@ -134,6 +134,7 @@ def filas_a_documentos_internos(filas: list[dict]) -> list[DocumentoInterno]:
             lote_raw=_txt(fila.get("lote")),
             cantidad_origen=cantidad_dec,
             descripcion_origen=descripcion_orig,
+            bodega=f"{int(str(fila['codigo_bodega']).strip())}-{int(str(fila['codigo_ubicacion']).strip())}",
         )
 
         clave = (tipo, codigo_int, num_doc)

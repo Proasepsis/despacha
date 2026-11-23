@@ -106,3 +106,7 @@ class ConvertirTests(SimpleTestCase):
         self.assertEqual(
             filas_a_documentos_internos([_fila(codigo_bodega=None)]), []
         )
+
+    def test_linea_guarda_bodega_informativa(self):
+        doc = filas_a_documentos_internos([_fila(codigo_ubicacion="020")])[0]
+        self.assertEqual(doc.lineas[0].bodega, "400-20")

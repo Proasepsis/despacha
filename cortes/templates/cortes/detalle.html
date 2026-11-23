@@ -125,6 +125,7 @@
                     <th>Referencia</th>
                     <th>Descripción</th>
                     <th>Lote</th>
+                    <th>Bodega</th>
                     <th>Cantidad</th>
                     <th style="width:24px;"></th>
                 </tr>
@@ -146,6 +147,7 @@
                         </label>
                         {% endif %}
                     </td>
+                    <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-soft);">{{ linea.bodega }}</td>
                     <td>
                         {% if es_editor %}
                         <input type="number" step="1" min="1" value="{{ linea.cantidad_unidades }}"

@@ -139,6 +139,7 @@ class Linea(models.Model):
         related_name="lineas_movidas_a_otros",
     )
     punto_incluido = models.BooleanField(default=False)
+    bodega = models.CharField(max_length=20, blank=True, default="")
 
     class Meta:
         ordering = ["id"]
