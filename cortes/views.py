@@ -296,6 +296,7 @@ class DetalleCorteView(LoginRequiredMixin, DetailView):
                     "referencia": linea.referencia_snapshot,
                     "descripcion": linea.descripcion_snapshot,
                     "lote": linea.lote,
+                    "bodega": linea.bodega,
                     "cantidad_unidades": str(linea.cantidad_unidades),
                     "sin_maestro": linea.sin_maestro,
                     "inactivo": linea.inactivo,
