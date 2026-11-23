@@ -9,6 +9,7 @@ class LineaInterna:
     lote_raw: str
     cantidad_origen: Decimal
     descripcion_origen: str = ""
+    bodega: str = ""  # informativo, p.ej. "400-20"; vacío si la fuente no la trae
 
 
 @dataclass

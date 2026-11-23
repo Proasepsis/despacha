@@ -134,6 +134,7 @@ def _crear_linea_con_producto(
         referencia_snapshot=producto.referencia,
         descripcion_snapshot=producto.descripcion,
         unidad_empaque_snapshot=producto.unidad_empaque,
+        bodega=linea.bodega,
     )
 
 
@@ -155,4 +156,5 @@ def _crear_linea_sin_maestro(doc: Documento, linea: LineaInterna) -> Linea:
         referencia_snapshot="",
         descripcion_snapshot=descripcion_snapshot,
         unidad_empaque_snapshot=1,
+        bodega=linea.bodega,
     )
